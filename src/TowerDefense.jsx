@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import EmojiPicker from 'emoji-picker-react';
 
 // Config
 import {
   GRID_SIZE, COLS, ROWS, TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT,
-  DEFAULT_GEM_TYPES, isInSpawnZone, isInGoalZone, isInCheckpointZone
+  DEFAULT_GEM_TYPES, EFFECT_NAMES, isInSpawnZone, isInGoalZone, isInCheckpointZone
 } from './config/constants';
-import { fetchGems, fetchRecipes, updateGem, createRecipe, deleteRecipe } from './services/api';
+import { fetchGems, fetchRecipes, createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe } from './services/api';
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
 
@@ -61,12 +62,22 @@ const TowerDefense = () => {
   const [adminPage, setAdminPage] = useState(null);
   const [editingGem, setEditingGem] = useState(null);
   const [adminMessage, setAdminMessage] = useState(null);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [colorPickerPosition, setColorPickerPosition] = useState({ x: 0, y: 0 });
+  const [showEffectSelector, setShowEffectSelector] = useState(false);
+  const [showEmojiSelector, setShowEmojiSelector] = useState(false);
+  const [showRecipeEditor, setShowRecipeEditor] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
+  const [editingField, setEditingField] = useState(null);
+  const [fieldInputValue, setFieldInputValue] = useState('');
+  const [fieldInputPosition, setFieldInputPosition] = useState({ x: 0, y: 0 });
 
   // Refs
   const gameLoopRef = useRef();
   const lastTimeRef = useRef(null);
   const towerAttackTimers = useRef({});
   const enemyIdCounter = useRef(0);
+  const colorPickerRef = useRef(null);
 
   // Charger les donnees depuis l'API
   useEffect(() => {
@@ -524,6 +535,22 @@ const TowerDefense = () => {
           }
           else if (btn.action === 'gems') setAdminPage('gems');
           else if (btn.action === 'recipes') setAdminPage('recipes');
+          else if (btn.action === 'create-gem') {
+            // Créer une nouvelle gemme avec valeurs par défaut
+            setEditingGem({
+              id: '',
+              name: 'Nouvelle Gemme',
+              color: '#888888',
+              damage: 10,
+              speed: 1000,
+              range: 100,
+              effect: 'none',
+              icon: '💎',
+              is_droppable: true,
+              is_base: false
+            });
+            setAdminPage('edit-gem');
+          }
           else if (btn.action === 'edit-gem') {
             setEditingGem({ ...gemTypes[btn.gemId], id: btn.gemId });
             setAdminPage('edit-gem');
@@ -535,22 +562,69 @@ const TowerDefense = () => {
               return;
             }
 
-            const fieldLabels = {
-              name: 'Nom', color: 'Couleur (ex: #ef4444)', damage: 'Degats',
-              speed: 'Vitesse (ms)', range: 'Portee', effect: 'Effet', icon: 'Icone (emoji)'
-            };
-            const currentValue = editingGem[btn.fieldKey];
-            const newValue = prompt(`${fieldLabels[btn.fieldKey]}:`, String(currentValue));
-            if (newValue !== null) {
-              const parsedValue = ['damage', 'speed', 'range'].includes(btn.fieldKey)
-                ? parseInt(newValue) || 0
-                : newValue;
-              setEditingGem(prev => ({ ...prev, [btn.fieldKey]: parsedValue }));
+            // Couleur - ouvrir le color picker
+            if (btn.fieldKey === 'color') {
+              const rect = canvasRef.current.getBoundingClientRect();
+              setColorPickerPosition({ x: btn.x + rect.left, y: btn.y + rect.top });
+              setShowColorPicker(true);
+              setTimeout(() => {
+                if (colorPickerRef.current) {
+                  colorPickerRef.current.click();
+                }
+              }, 0);
+              return;
+            }
+
+            // Effet - ouvrir le sélecteur d'effets
+            if (btn.fieldKey === 'effect') {
+              setShowEffectSelector(prev => !prev);
+              return;
+            }
+
+            // Icône - ouvrir le sélecteur d'emojis
+            if (btn.fieldKey === 'icon') {
+              setShowEmojiSelector(prev => !prev);
+              return;
+            }
+
+            // Champs texte et numériques - ouvrir l'input
+            const rect = canvasRef.current.getBoundingClientRect();
+            setFieldInputPosition({ x: btn.x + rect.left, y: btn.y + rect.top });
+            setFieldInputValue(String(editingGem[btn.fieldKey]));
+            setEditingField(btn.fieldKey);
+          }
+          else if (btn.action === 'delete-gem' && editingGem) {
+            // Supprimer une gemme existante
+            if (confirm(`Supprimer définitivement la gemme "${editingGem.name}" ?`)) {
+              deleteGem(editingGem.id)
+                .then(() => {
+                  // Retirer localement après succès API
+                  setGemTypes(prev => {
+                    const newGems = { ...prev };
+                    delete newGems[editingGem.id];
+                    return newGems;
+                  });
+                  setAdminMessage({ type: 'success', text: `Gemme "${editingGem.name}" supprimée !` });
+                  setTimeout(() => setAdminMessage(null), 3000);
+                  setAdminPage('gems');
+                  setEditingGem(null);
+                })
+                .catch(err => {
+                  setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
+                  setTimeout(() => setAdminMessage(null), 3000);
+                });
             }
           }
           else if (btn.action === 'save' && editingGem) {
-            // Sauvegarder en BDD via API
+            // Vérifier que l'ID est renseigné
+            if (!editingGem.id || editingGem.id.trim() === '') {
+              setAdminMessage({ type: 'error', text: 'L\'ID est obligatoire !' });
+              setTimeout(() => setAdminMessage(null), 3000);
+              return;
+            }
+
             const gemData = {
+              id: editingGem.id.toUpperCase().trim(),
               name: editingGem.name,
               color: editingGem.color,
               damage: editingGem.damage,
@@ -562,11 +636,18 @@ const TowerDefense = () => {
               is_base: editingGem.is_base ?? false
             };
 
-            updateGem(editingGem.id, gemData)
+            // Vérifier si c'est une création (pas d'ID dans gemTypes) ou une modification
+            const isNewGem = !gemTypes[editingGem.id];
+            const apiCall = isNewGem ? createGem(gemData) : updateGem(editingGem.id, gemData);
+
+            apiCall
               .then(() => {
                 // Mettre à jour localement après succès API
-                setGemTypes(prev => ({ ...prev, [editingGem.id]: gemData }));
-                setAdminMessage({ type: 'success', text: `Gemme "${editingGem.name}" sauvegardee en BDD !` });
+                setGemTypes(prev => ({ ...prev, [gemData.id]: gemData }));
+                setAdminMessage({
+                  type: 'success',
+                  text: `Gemme "${editingGem.name}" ${isNewGem ? 'creee' : 'sauvegardee'} en BDD !`
+                });
                 setTimeout(() => setAdminMessage(null), 3000);
                 setAdminPage('gems');
                 setEditingGem(null);
@@ -577,38 +658,82 @@ const TowerDefense = () => {
               });
           }
           else if (btn.action === 'add-recipe') {
-            const gemKeys = Object.keys(gemTypes).filter(k => k !== 'BASE');
-            const requiredGems = prompt(
-              `Gemmes requises (separees par des virgules)\nDisponibles: ${gemKeys.join(', ')}`,
-              'RED,BLUE'
-            );
-            if (!requiredGems) return;
-
-            const resultGem = prompt(
-              `Gemme resultat\nDisponibles: ${gemKeys.join(', ')}`,
-              'PURPLE'
-            );
-            if (!resultGem) return;
-
-            const minCount = prompt('Nombre minimum de gemmes requises:', '3');
-            if (!minCount) return;
+            // Ouvrir l'éditeur visuel de recette
+            setEditingRecipe({
+              required_gems: [],
+              result_gem_id: '',
+              min_count: 3
+            });
+            setShowRecipeEditor(true);
+          }
+          else if (btn.action === 'edit-recipe') {
+            // Ouvrir l'éditeur avec les données de la recette existante
+            const recipe = btn.recipe;
+            setEditingRecipe({
+              id: recipe.id,
+              required_gems: recipe.required_gems.split(',').map(g => g.trim()),
+              result_gem_id: recipe.result_gem_id,
+              min_count: recipe.min_count || 3
+            });
+            setShowRecipeEditor(true);
+          }
+          else if (btn.action === 'save-recipe' && editingRecipe) {
+            // Sauvegarder la recette (création ou modification)
+            if (editingRecipe.required_gems.length === 0) {
+              setAdminMessage({ type: 'error', text: 'Sélectionnez au moins un ingrédient !' });
+              setTimeout(() => setAdminMessage(null), 3000);
+              return;
+            }
+            if (!editingRecipe.result_gem_id) {
+              setAdminMessage({ type: 'error', text: 'Sélectionnez une gemme résultat !' });
+              setTimeout(() => setAdminMessage(null), 3000);
+              return;
+            }
 
             const recipeData = {
-              required_gems: requiredGems.toUpperCase(),
-              result_gem_id: resultGem.toUpperCase(),
-              min_count: parseInt(minCount) || 3
+              required_gems: editingRecipe.required_gems.join(','),
+              result_gem_id: editingRecipe.result_gem_id,
+              min_count: editingRecipe.min_count
             };
 
-            createRecipe(recipeData)
-              .then(newRecipe => {
-                setFusionRecipes(prev => [...prev, newRecipe]);
-                setAdminMessage({ type: 'success', text: 'Recette ajoutee en BDD !' });
+            // Vérifier si c'est une création ou une modification
+            const isNewRecipe = !editingRecipe.id;
+            const apiCall = isNewRecipe ? createRecipe(recipeData) : updateRecipe(editingRecipe.id, recipeData);
+
+            apiCall
+              .then(savedRecipe => {
+                if (isNewRecipe) {
+                  setFusionRecipes(prev => [...prev, savedRecipe]);
+                  setAdminMessage({ type: 'success', text: 'Recette ajoutée en BDD !' });
+                } else {
+                  setFusionRecipes(prev => prev.map(r => r.id === editingRecipe.id ? savedRecipe : r));
+                  setAdminMessage({ type: 'success', text: 'Recette modifiée en BDD !' });
+                }
                 setTimeout(() => setAdminMessage(null), 3000);
+                setShowRecipeEditor(false);
+                setEditingRecipe(null);
               })
               .catch(err => {
                 setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
                 setTimeout(() => setAdminMessage(null), 3000);
               });
+          }
+          else if (btn.action === 'toggle-ingredient') {
+            // Toggle un ingrédient dans la recette
+            setEditingRecipe(prev => {
+              const ingredients = [...prev.required_gems];
+              const index = ingredients.indexOf(btn.gemId);
+              if (index >= 0) {
+                ingredients.splice(index, 1);
+              } else {
+                ingredients.push(btn.gemId);
+              }
+              return { ...prev, required_gems: ingredients };
+            });
+          }
+          else if (btn.action === 'select-result') {
+            // Sélectionner la gemme résultat
+            setEditingRecipe(prev => ({ ...prev, result_gem_id: btn.gemId }));
           }
           else if (btn.action === 'delete-recipe') {
             const recipe = fusionRecipes[btn.recipeIndex];
@@ -795,9 +920,41 @@ const TowerDefense = () => {
 
   const handleMouseUp = () => setIsDragging(false);
 
+  // Handler pour le color picker
+  const handleColorChange = (e) => {
+    const newColor = e.target.value;
+    setEditingGem(prev => ({ ...prev, color: newColor }));
+    setShowColorPicker(false);
+  };
+
+  // Handler pour le sélecteur d'effets (multi-sélection)
+  const handleEffectToggle = (effectKey) => {
+    setEditingGem(prev => {
+      const currentEffects = prev.effect ? prev.effect.split(',') : [];
+      const effectIndex = currentEffects.indexOf(effectKey);
+
+      let newEffects;
+      if (effectIndex >= 0) {
+        // Retirer l'effet
+        newEffects = currentEffects.filter(e => e !== effectKey);
+      } else {
+        // Ajouter l'effet
+        newEffects = [...currentEffects, effectKey];
+      }
+
+      return { ...prev, effect: newEffects.filter(e => e).join(',') || 'none' };
+    });
+  };
+
+  // Handler pour le sélecteur d'emojis
+  const handleEmojiClick = (emojiData) => {
+    setEditingGem(prev => ({ ...prev, icon: emojiData.emoji }));
+    setShowEmojiSelector(false);
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900">
-      <div id="game-container" className={gameState === 'menu' || adminPage ? 'menu-active' : ''}>
+      <div id="game-container" className={gameState === 'menu' || adminPage ? 'menu-active' : ''} style={{ position: 'relative' }}>
         <canvas
           ref={canvasRef}
           width={CANVAS_WIDTH}
@@ -818,6 +975,483 @@ const TowerDefense = () => {
           }`}
           style={{ maxWidth: '100%', height: 'auto' }}
         />
+        {/* Color Picker */}
+        {showColorPicker && editingGem && (
+          <input
+            ref={colorPickerRef}
+            type="color"
+            value={editingGem.color || '#888888'}
+            onChange={handleColorChange}
+            style={{
+              position: 'absolute',
+              left: `${colorPickerPosition.x}px`,
+              top: `${colorPickerPosition.y}px`,
+              opacity: 0,
+              pointerEvents: 'all'
+            }}
+          />
+        )}
+
+        {/* Field Input Editor */}
+        {editingField && editingGem && (
+          <div
+            style={{
+              position: 'absolute',
+              left: `${fieldInputPosition.x}px`,
+              top: `${fieldInputPosition.y}px`,
+              zIndex: 1001,
+              backgroundColor: 'rgba(15, 23, 42, 0.98)',
+              padding: '15px',
+              borderRadius: '8px',
+              border: '2px solid #3b82f6',
+              minWidth: '300px'
+            }}
+          >
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
+                {editingField === 'id' && 'ID (ex: EMERALD)'}
+                {editingField === 'name' && 'Nom de la gemme'}
+                {editingField === 'damage' && 'Dégâts'}
+                {editingField === 'speed' && 'Vitesse (ms)'}
+                {editingField === 'range' && 'Portée'}
+              </label>
+              <input
+                type={['damage', 'speed', 'range'].includes(editingField) ? 'number' : 'text'}
+                value={fieldInputValue}
+                onChange={(e) => setFieldInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const parsedValue = ['damage', 'speed', 'range'].includes(editingField)
+                      ? parseInt(fieldInputValue) || 0
+                      : fieldInputValue;
+                    setEditingGem(prev => ({ ...prev, [editingField]: parsedValue }));
+                    setEditingField(null);
+                  } else if (e.key === 'Escape') {
+                    setEditingField(null);
+                  }
+                }}
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: 'rgba(30, 41, 59, 0.8)',
+                  color: '#f1f5f9',
+                  border: '1px solid #475569',
+                  borderRadius: '5px',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  const parsedValue = ['damage', 'speed', 'range'].includes(editingField)
+                    ? parseInt(fieldInputValue) || 0
+                    : fieldInputValue;
+                  setEditingGem(prev => ({ ...prev, [editingField]: parsedValue }));
+                  setEditingField(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  backgroundColor: '#22c55e',
+                  color: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✓ Valider
+              </button>
+              <button
+                onClick={() => setEditingField(null)}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  backgroundColor: '#64748b',
+                  color: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✗ Annuler
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Effect Selector - Multi-sélection */}
+        {showEffectSelector && editingGem && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 1000,
+              backgroundColor: 'rgba(15, 23, 42, 0.98)',
+              padding: '30px',
+              borderRadius: '15px',
+              border: '3px solid #3b82f6',
+              minWidth: '400px',
+              maxHeight: '600px',
+              overflowY: 'auto'
+            }}
+          >
+            <h3 style={{ color: '#f1f5f9', marginBottom: '10px', fontSize: '20px', fontWeight: 'bold', textAlign: 'center' }}>
+              Sélectionnez les effets
+            </h3>
+            <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', marginBottom: '20px' }}>
+              Vous pouvez sélectionner plusieurs effets
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {Object.entries(EFFECT_NAMES).map(([key, name]) => {
+                const currentEffects = editingGem.effect ? editingGem.effect.split(',') : [];
+                const isSelected = currentEffects.includes(key);
+
+                return (
+                  <label
+                    key={key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '12px',
+                      backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(30, 41, 59, 0.5)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      border: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.8)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.5)';
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleEffectToggle(key)}
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        marginRight: '12px',
+                        cursor: 'pointer',
+                        accentColor: '#3b82f6'
+                      }}
+                    />
+                    <div>
+                      <div style={{ color: '#f1f5f9', fontSize: '16px', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                        {name}
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: '12px' }}>
+                        {key}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setShowEffectSelector(false)}
+              style={{
+                marginTop: '20px',
+                width: '100%',
+                padding: '12px',
+                backgroundColor: '#3b82f6',
+                color: '#f1f5f9',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              Valider
+            </button>
+          </div>
+        )}
+
+        {/* Emoji Picker */}
+        {showEmojiSelector && editingGem && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 1000
+            }}
+          >
+            <EmojiPicker
+              onEmojiClick={handleEmojiClick}
+              width={400}
+              height={500}
+              theme="dark"
+              searchPlaceholder="Rechercher un emoji..."
+            />
+            <button
+              onClick={() => setShowEmojiSelector(false)}
+              style={{
+                marginTop: '10px',
+                width: '100%',
+                padding: '10px',
+                backgroundColor: '#a855f7',
+                color: '#f1f5f9',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}
+            >
+              Fermer
+            </button>
+          </div>
+        )}
+
+        {/* Recipe Editor */}
+        {showRecipeEditor && editingRecipe && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 1000,
+              backgroundColor: 'rgba(15, 23, 42, 0.98)',
+              padding: '30px',
+              borderRadius: '15px',
+              border: '3px solid #a855f7',
+              width: '700px',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            <h2 style={{ color: '#f1f5f9', marginBottom: '10px', fontSize: '24px', fontWeight: 'bold', textAlign: 'center' }}>
+              🔮 {editingRecipe.id ? 'Modifier la recette' : 'Créer une recette de fusion'}
+            </h2>
+
+            {/* Section Ingrédients */}
+            <div style={{ marginTop: '25px' }}>
+              <h3 style={{ color: '#a855f7', fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>
+                Ingrédients requis
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '15px' }}>
+                Sélectionnez les gemmes nécessaires pour cette fusion
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
+                {Object.entries(gemTypes)
+                  .filter(([key]) => key !== 'BASE')
+                  .map(([key, gem]) => {
+                    const isSelected = editingRecipe.required_gems.includes(key);
+                    return (
+                      <div
+                        key={key}
+                        onClick={() => {
+                          const ingredients = [...editingRecipe.required_gems];
+                          const index = ingredients.indexOf(key);
+                          if (index >= 0) {
+                            ingredients.splice(index, 1);
+                          } else {
+                            ingredients.push(key);
+                          }
+                          setEditingRecipe(prev => ({ ...prev, required_gems: ingredients }));
+                        }}
+                        style={{
+                          padding: '12px',
+                          backgroundColor: isSelected ? 'rgba(168, 85, 247, 0.3)' : 'rgba(30, 41, 59, 0.5)',
+                          borderRadius: '8px',
+                          border: isSelected ? '2px solid #a855f7' : '2px solid transparent',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ fontSize: '32px', marginBottom: '5px' }}>{gem.icon}</div>
+                        <div style={{ color: '#f1f5f9', fontSize: '12px', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                          {key}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Section Résultat */}
+            <div style={{ marginTop: '30px' }}>
+              <h3 style={{ color: '#22c55e', fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>
+                Gemme résultat
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '15px' }}>
+                Sélectionnez la gemme qui sera créée
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
+                {Object.entries(gemTypes)
+                  .filter(([key]) => key !== 'BASE')
+                  .map(([key, gem]) => {
+                    const isSelected = editingRecipe.result_gem_id === key;
+                    return (
+                      <div
+                        key={key}
+                        onClick={() => setEditingRecipe(prev => ({ ...prev, result_gem_id: key }))}
+                        style={{
+                          padding: '12px',
+                          backgroundColor: isSelected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(30, 41, 59, 0.5)',
+                          borderRadius: '8px',
+                          border: isSelected ? '2px solid #22c55e' : '2px solid transparent',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ fontSize: '32px', marginBottom: '5px' }}>{gem.icon}</div>
+                        <div style={{ color: '#f1f5f9', fontSize: '12px', fontWeight: isSelected ? 'bold' : 'normal' }}>
+                          {key}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Section Minimum */}
+            <div style={{ marginTop: '30px' }}>
+              <h3 style={{ color: '#3b82f6', fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>
+                Nombre minimum de gemmes
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '15px' }}>
+                Nombre minimum d'ingrédients requis pour déclencher la fusion
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <input
+                  type="range"
+                  min="2"
+                  max="10"
+                  value={editingRecipe.min_count}
+                  onChange={(e) => setEditingRecipe(prev => ({ ...prev, min_count: parseInt(e.target.value) }))}
+                  style={{
+                    flex: 1,
+                    height: '8px',
+                    borderRadius: '4px',
+                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(editingRecipe.min_count - 2) * 12.5}%, #1e293b ${(editingRecipe.min_count - 2) * 12.5}%, #1e293b 100%)`,
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                />
+                <div style={{
+                  minWidth: '60px',
+                  padding: '10px',
+                  backgroundColor: '#3b82f6',
+                  color: '#f1f5f9',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  fontSize: '20px',
+                  fontWeight: 'bold'
+                }}>
+                  {editingRecipe.min_count}
+                </div>
+              </div>
+            </div>
+
+            {/* Boutons */}
+            <div style={{ marginTop: '30px', display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  setShowRecipeEditor(false);
+                  setEditingRecipe(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: '#475569',
+                  color: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  // Sauvegarder la recette
+                  if (editingRecipe.required_gems.length === 0) {
+                    setAdminMessage({ type: 'error', text: 'Sélectionnez au moins un ingrédient !' });
+                    setTimeout(() => setAdminMessage(null), 3000);
+                    return;
+                  }
+                  if (!editingRecipe.result_gem_id) {
+                    setAdminMessage({ type: 'error', text: 'Sélectionnez une gemme résultat !' });
+                    setTimeout(() => setAdminMessage(null), 3000);
+                    return;
+                  }
+
+                  const recipeData = {
+                    required_gems: editingRecipe.required_gems.join(','),
+                    result_gem_id: editingRecipe.result_gem_id,
+                    min_count: editingRecipe.min_count
+                  };
+
+                  createRecipe(recipeData)
+                    .then(newRecipe => {
+                      setFusionRecipes(prev => [...prev, newRecipe]);
+                      setAdminMessage({ type: 'success', text: 'Recette ajoutée en BDD !' });
+                      setTimeout(() => setAdminMessage(null), 3000);
+                      setShowRecipeEditor(false);
+                      setEditingRecipe(null);
+                    })
+                    .catch(err => {
+                      setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
+                      setTimeout(() => setAdminMessage(null), 3000);
+                    });
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: '#22c55e',
+                  color: '#f1f5f9',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                💾 Sauvegarder
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Overlay sombre pour les sélecteurs */}
+        {(showEffectSelector || showEmojiSelector || showRecipeEditor) && (
+          <div
+            onClick={() => {
+              setShowEffectSelector(false);
+              setShowEmojiSelector(false);
+              setShowRecipeEditor(false);
+            }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+              zIndex: 999
+            }}
+          />
+        )}
       </div>
     </div>
   );

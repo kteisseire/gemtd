@@ -98,6 +98,17 @@ export const createRecipe = async (recipeData) => {
   return await response.json();
 };
 
+// Mettre a jour une recette
+export const updateRecipe = async (recipeId, recipeData) => {
+  const response = await fetch(`${API_BASE}/recipes/${recipeId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(recipeData)
+  });
+  if (!response.ok) throw new Error('Failed to update recipe');
+  return await response.json();
+};
+
 // Supprimer une recette
 export const deleteRecipe = async (recipeId) => {
   const response = await fetch(`${API_BASE}/recipes/${recipeId}`, {

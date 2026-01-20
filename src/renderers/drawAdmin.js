@@ -148,7 +148,12 @@ const drawAdminHome = (ctx, hoveredMenuButton) => {
 
 // Liste des gemmes
 const drawAdminGems = (ctx, gemTypes, hoveredMenuButton) => {
-  const startY = 90;
+  const startY = 140;
+
+  // Bouton "Nouvelle gemme"
+  drawStyledButton(ctx, CANVAS_WIDTH - 180, 80, 160, 40, '+ Nouvelle gemme',
+    hoveredMenuButton === 'gem-create', { fontSize: 'bold 14px Arial', variant: 'success' });
+
   const gemKeys = Object.keys(gemTypes);
   const cardWidth = 280;
   const cardHeight = 70;
@@ -335,8 +340,11 @@ const drawAdminRecipes = (ctx, fusionRecipes, gemTypes, hoveredMenuButton) => {
       ctx.font = 'bold 20px Arial';
       ctx.fillText(String(recipe.min_count), 665, y + 27);
 
-      // Bouton supprimer
-      drawStyledButton(ctx, 740, y + 5, 70, 30, '🗑️',
+      // Boutons Modifier et Supprimer
+      drawStyledButton(ctx, 740, y + 5, 70, 30, '✏️',
+        hoveredMenuButton === `recipe-edit-${index}`, { fontSize: '14px Arial', variant: 'primary' });
+
+      drawStyledButton(ctx, 820, y + 5, 70, 30, '🗑️',
         hoveredMenuButton === `recipe-delete-${index}`, { fontSize: '14px Arial', variant: 'danger' });
 
       y += 60;
@@ -376,14 +384,16 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
   ctx.fillStyle = '#f1f5f9';
   ctx.font = 'bold 24px Arial';
   ctx.textAlign = 'left';
-  ctx.fillText(editingGem.name || 'Sans nom', panelX + 120, startY + 50);
+  ctx.fillText(editingGem.name || 'Nouvelle gemme', panelX + 120, startY + 50);
 
   ctx.fillStyle = '#64748b';
   ctx.font = '14px Arial';
-  ctx.fillText(`ID: ${editingGem.id}`, panelX + 120, startY + 75);
+  const isNewGem = !editingGem.id || editingGem.id === 'NEW';
+  ctx.fillText(isNewGem ? 'Nouvelle gemme' : `Modification`, panelX + 120, startY + 75);
 
   // Champs
   const fields = [
+    { label: 'ID', value: editingGem.id || '', key: 'id', icon: '🔑' },
     { label: 'Nom', value: editingGem.name, key: 'name', icon: '📝' },
     { label: 'Couleur', value: editingGem.color, key: 'color', icon: '🎨' },
     { label: 'Dégâts', value: editingGem.damage, key: 'damage', icon: '⚔️' },
@@ -457,8 +467,18 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
     y += fieldHeight + 8;
   });
 
+  // Boutons Sauvegarder et Supprimer
+  const isNewGemButton = !editingGem.id || editingGem.id === 'NEW' || editingGem.id === '';
+
+  if (!isNewGemButton) {
+    // Bouton supprimer (uniquement si c'est une gemme existante)
+    drawStyledButton(ctx, panelX + 30, y + 15, 160, 45, '🗑️ Supprimer',
+      hoveredMenuButton === 'admin-delete-gem', { fontSize: 'bold 16px Arial', variant: 'danger' });
+  }
+
   // Bouton sauvegarder
-  drawStyledButton(ctx, panelX + panelWidth / 2 - 80, y + 15, 160, 45, '💾 Sauvegarder',
+  const saveX = isNewGemButton ? panelX + panelWidth / 2 - 80 : panelX + panelWidth - 190;
+  drawStyledButton(ctx, saveX, y + 15, 160, 45, '💾 Sauvegarder',
     hoveredMenuButton === 'admin-save', { fontSize: 'bold 16px Arial', variant: 'success' });
 };
 
@@ -474,7 +494,10 @@ export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes =
     buttons.push({ id: 'admin-gems', x: centerX - 200, y: centerY - 80, width: 400, height: 100, action: 'gems' });
     buttons.push({ id: 'admin-recipes', x: centerX - 200, y: centerY + 60, width: 400, height: 100, action: 'recipes' });
   } else if (adminPage === 'gems') {
-    const startY = 90;
+    // Bouton "Nouvelle gemme"
+    buttons.push({ id: 'gem-create', x: CANVAS_WIDTH - 180, y: 80, width: 160, height: 40, action: 'create-gem' });
+
+    const startY = 140;
     const gemKeys = Object.keys(gemTypes);
     const cardWidth = 280;
     const cardHeight = 70;
@@ -507,9 +530,22 @@ export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes =
     fusionRecipes.forEach((recipe, index) => {
       if (y > CANVAS_HEIGHT - 80) return;
 
+      // Bouton modifier
+      buttons.push({
+        id: `recipe-edit-${index}`,
+        x: 740,
+        y: y + 5,
+        width: 70,
+        height: 30,
+        action: 'edit-recipe',
+        recipeIndex: index,
+        recipe: recipe
+      });
+
+      // Bouton supprimer
       buttons.push({
         id: `recipe-delete-${index}`,
-        x: 740,
+        x: 820,
         y: y + 5,
         width: 70,
         height: 30,
@@ -526,7 +562,7 @@ export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes =
     const fieldWidth = panelWidth - 60;
     const fieldHeight = 42;
 
-    const fields = ['name', 'color', 'damage', 'speed', 'range', 'effect', 'icon', 'is_droppable', 'is_base'];
+    const fields = ['id', 'name', 'color', 'damage', 'speed', 'range', 'effect', 'icon', 'is_droppable', 'is_base'];
     let y = startY + 120;
 
     fields.forEach(key => {
@@ -542,9 +578,25 @@ export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes =
       y += fieldHeight + 8;
     });
 
+    const isNewGemButton = !editingGem.id || editingGem.id === 'NEW' || editingGem.id === '';
+
+    if (!isNewGemButton) {
+      // Bouton supprimer (uniquement si c'est une gemme existante)
+      buttons.push({
+        id: 'admin-delete-gem',
+        x: panelX + 30,
+        y: y + 15,
+        width: 160,
+        height: 45,
+        action: 'delete-gem'
+      });
+    }
+
+    // Bouton sauvegarder
+    const saveX = isNewGemButton ? panelX + panelWidth / 2 - 80 : panelX + panelWidth - 190;
     buttons.push({
       id: 'admin-save',
-      x: panelX + panelWidth / 2 - 80,
+      x: saveX,
       y: y + 15,
       width: 160,
       height: 45,

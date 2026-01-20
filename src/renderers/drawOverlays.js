@@ -73,8 +73,11 @@ export const drawTowerTooltip = (ctx, deps) => {
   ctx.fillText(`Portee: ${tower.range}`, tooltipX + 10, tooltipY + 52);
   ctx.fillText(`Vitesse: ${tower.speed}ms`, tooltipX + 10, tooltipY + 69);
 
-  const effectName = EFFECT_NAMES[tower.effect] || tower.effect;
-  ctx.fillText(`Effet: ${effectName}`, tooltipX + 10, tooltipY + 86);
+  // Afficher les effets (peut être multiple, séparés par des virgules)
+  const effects = tower.effect ? tower.effect.split(',').filter(e => e) : [];
+  const effectNames = effects.map(e => EFFECT_NAMES[e] || e).join(', ');
+  const displayEffect = effectNames || 'Aucun';
+  ctx.fillText(`Effet: ${displayEffect}`, tooltipX + 10, tooltipY + 86);
 
   // Afficher les recettes de fusion
   if (relevantRecipes.length > 0) {
