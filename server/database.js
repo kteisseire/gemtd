@@ -43,4 +43,20 @@ db.exec(`
   )
 `);
 
+// Créer la table du leaderboard
+db.exec(`
+  CREATE TABLE IF NOT EXISTS leaderboard (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pseudo TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    wave INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Créer un index pour optimiser les requêtes de tri par score
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_leaderboard_score ON leaderboard(score DESC)
+`);
+
 export default db;

@@ -159,12 +159,57 @@ export const drawToolbar = (ctx, buttons, hoveredButton) => {
     }
 
     if (btn.type === 'label' || btn.type === 'stat') {
-      ctx.fillStyle = '#fff';
-      ctx.font = '16px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const displayText = btn.value !== undefined ? `${btn.emoji}${btn.value}` : btn.emoji || '';
-      ctx.fillText(displayText, btn.x + btn.width / 2, 25);
+      // Design amélioré pour les stats
+      if (btn.type === 'stat') {
+        // Fond avec dégradé
+        const gradient = ctx.createLinearGradient(btn.x, 8, btn.x, 42);
+
+        if (btn.id === 'score') {
+          gradient.addColorStop(0, 'rgba(251, 191, 36, 0.3)');
+          gradient.addColorStop(1, 'rgba(245, 158, 11, 0.1)');
+        } else if (btn.id === 'lives') {
+          gradient.addColorStop(0, 'rgba(239, 68, 68, 0.3)');
+          gradient.addColorStop(1, 'rgba(220, 38, 38, 0.1)');
+        } else if (btn.id === 'wave') {
+          gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+          gradient.addColorStop(1, 'rgba(37, 99, 235, 0.1)');
+        } else {
+          gradient.addColorStop(0, 'rgba(168, 85, 247, 0.3)');
+          gradient.addColorStop(1, 'rgba(147, 51, 234, 0.1)');
+        }
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.roundRect(btn.x, 8, btn.width, 34, 5);
+        ctx.fill();
+
+        // Bordure
+        const borderColor = btn.id === 'score' ? '#fbbf24' : btn.id === 'lives' ? '#ef4444' : btn.id === 'wave' ? '#3b82f6' : '#a855f7';
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Emoji
+        ctx.font = '18px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(btn.emoji, btn.x + 8, 25);
+
+        // Valeur
+        const valueColor = btn.id === 'score' ? '#fbbf24' : btn.id === 'lives' ? '#f87171' : btn.id === 'wave' ? '#60a5fa' : '#c084fc';
+        ctx.fillStyle = valueColor;
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(String(btn.value), btn.x + btn.width - 8, 25);
+      } else {
+        // Labels simples
+        ctx.fillStyle = '#fff';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const displayText = btn.value !== undefined ? `${btn.emoji}${btn.value}` : btn.emoji || '';
+        ctx.fillText(displayText, btn.x + btn.width / 2, 25);
+      }
     }
   });
 };

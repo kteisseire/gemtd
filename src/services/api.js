@@ -117,3 +117,33 @@ export const deleteRecipe = async (recipeId) => {
   if (!response.ok) throw new Error('Failed to delete recipe');
   return true;
 };
+
+// Recuperer le leaderboard (top 10)
+export const fetchLeaderboard = async () => {
+  try {
+    const response = await fetch(`${API_BASE}/leaderboard`);
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error('Failed to fetch leaderboard');
+  } catch (error) {
+    console.error('Erreur lors du chargement du leaderboard:', error);
+    return [];
+  }
+};
+
+// Ajouter un score au leaderboard
+export const submitScore = async (pseudo, score, wave) => {
+  try {
+    const response = await fetch(`${API_BASE}/leaderboard`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pseudo, score, wave })
+    });
+    if (!response.ok) throw new Error('Failed to submit score');
+    return await response.json();
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi du score:', error);
+    throw error;
+  }
+};

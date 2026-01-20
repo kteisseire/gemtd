@@ -160,6 +160,44 @@ app.delete('/api/recipes/:id', (req, res) => {
   }
 });
 
+// GET - Récupérer le top 10 du leaderboard
+app.get('/api/leaderboard', (req, res) => {
+  try {
+    const scores = db.prepare(`
+      SELECT id, pseudo, score, wave, created_at
+      FROM leaderboard
+      ORDER BY score DESC
+      LIMIT 10
+    `).all();
+
+    res.json(scores);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la récupération du leaderboard' });
+  }
+});
+
+// POST - Ajouter un score au leaderboard
+app.post('/api/leaderboard', (req, res) => {
+  try {
+    const { pseudo, score, wave } = req.body;
+
+    if (!pseudo || score === undefined || wave === undefined) {
+      return res.status(400).json({ error: 'Pseudo, score et wave sont requis' });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO leaderboard (pseudo, score, wave)
+      VALUES (?, ?, ?)
+    `).run(pseudo, score, wave);
+
+    const newScore = db.prepare('SELECT * FROM leaderboard WHERE id = ?').get(result.lastInsertRowid);
+
+    res.status(201).json(newScore);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de l\'ajout du score' });
+  }
+});
+
 // Démarrer le serveur
 app.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);

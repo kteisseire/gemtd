@@ -6,7 +6,7 @@ import {
   GRID_SIZE, COLS, ROWS, TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT,
   DEFAULT_GEM_TYPES, EFFECT_NAMES, isInSpawnZone, isInGoalZone, isInCheckpointZone
 } from './config/constants';
-import { fetchGems, fetchRecipes, createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe } from './services/api';
+import { fetchGems, fetchRecipes, createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe, fetchLeaderboard, submitScore } from './services/api';
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
 
@@ -71,6 +71,7 @@ const TowerDefense = () => {
   const [editingField, setEditingField] = useState(null);
   const [fieldInputValue, setFieldInputValue] = useState('');
   const [fieldInputPosition, setFieldInputPosition] = useState({ x: 0, y: 0 });
+  const [leaderboard, setLeaderboard] = useState([]);
 
   // Refs
   const gameLoopRef = useRef();
@@ -83,6 +84,7 @@ const TowerDefense = () => {
   useEffect(() => {
     fetchGems().then(gems => setGemTypes(gems)).catch(() => {});
     fetchRecipes().then(recipes => setFusionRecipes(recipes)).catch(() => {});
+    fetchLeaderboard().then(scores => setLeaderboard(scores)).catch(() => {});
   }, []);
 
   // Verifier si une fusion est possible
@@ -352,8 +354,17 @@ const TowerDefense = () => {
     if (lives <= 0) {
       setGameState('gameOver');
       saveScore(score);
+      // Envoyer le score au leaderboard si le pseudo est défini et le score > 0
+      if (pseudo && score > 0) {
+        submitScore(pseudo, score, wave)
+          .then(() => {
+            // Recharger le leaderboard après soumission
+            fetchLeaderboard().then(scores => setLeaderboard(scores));
+          })
+          .catch(err => console.error('Erreur soumission score:', err));
+      }
     }
-  }, [lives, score, saveScore]);
+  }, [lives, score, wave, pseudo, saveScore]);
 
   // Rendering
   useEffect(() => {
@@ -386,7 +397,7 @@ const TowerDefense = () => {
 
     // Menu
     if (gameState === 'menu' && !adminPage) {
-      drawMainMenu(ctx, { logoImage, hoveredMenuButton, pseudo, bestScore, lastScore });
+      drawMainMenu(ctx, { logoImage, hoveredMenuButton, pseudo, bestScore, lastScore, leaderboard });
       return;
     }
 
@@ -434,7 +445,7 @@ const TowerDefense = () => {
     selectedTempTower, selectedTowerToDelete, contextMenu, mousePos, errorMessage,
     gameSpeed, adminPage, editingGem, adminMessage, gemTypes, fusionRecipes,
     logoImage, grassImage, portailImage, arriveeImage, checkpointImages,
-    pseudo, bestScore, lastScore, getZoom, checkFusionPossible
+    pseudo, bestScore, lastScore, leaderboard, getZoom, checkFusionPossible
   ]);
 
   // Click handler
