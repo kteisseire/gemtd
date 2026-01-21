@@ -79,6 +79,7 @@ const TowerDefense = () => {
   const towerAttackTimers = useRef({});
   const enemyIdCounter = useRef(0);
   const colorPickerRef = useRef(null);
+  const scoreSubmittedRef = useRef(false);
 
   // Charger les donnees depuis l'API
   useEffect(() => {
@@ -205,6 +206,7 @@ const TowerDefense = () => {
   const startNewGame = () => {
     resetGame();
     setGameState('preparation');
+    scoreSubmittedRef.current = false; // Réinitialiser le flag pour permettre la soumission de la prochaine partie
   };
 
   // Game loop
@@ -351,11 +353,12 @@ const TowerDefense = () => {
 
   // Game over
   useEffect(() => {
-    if (lives <= 0) {
+    if (lives <= 0 && gameState !== 'gameOver') {
       setGameState('gameOver');
       saveScore(score);
-      // Envoyer le score au leaderboard si le pseudo est défini et le score > 0
-      if (pseudo && score > 0) {
+      // Envoyer le score au leaderboard une seule fois si le pseudo est défini et le score > 0
+      if (pseudo && score > 0 && !scoreSubmittedRef.current) {
+        scoreSubmittedRef.current = true;
         submitScore(pseudo, score, wave)
           .then(() => {
             // Recharger le leaderboard après soumission
@@ -364,7 +367,7 @@ const TowerDefense = () => {
           .catch(err => console.error('Erreur soumission score:', err));
       }
     }
-  }, [lives, score, wave, pseudo, saveScore]);
+  }, [lives, score, wave, pseudo, saveScore, gameState]);
 
   // Rendering
   useEffect(() => {
