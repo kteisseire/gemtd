@@ -5,7 +5,9 @@ import EmojiPicker from 'emoji-picker-react';
  * Composant modal pour sélectionner un emoji
  * Utilise la librairie emoji-picker-react
  */
-export const EmojiSelector = ({ onEmojiClick, onClose }) => {
+export const EmojiSelector = ({ showEmojiSelector, onEmojiClick, onClose }) => {
+  if (!showEmojiSelector) return null;
+
   return (
     <div
       style={{

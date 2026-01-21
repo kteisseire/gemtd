@@ -5,8 +5,8 @@ import { EFFECT_NAMES } from '../../config/constants';
  * Composant modal pour sélectionner plusieurs effets
  * Affiche une liste de checkboxes avec tous les effets disponibles
  */
-export const EffectSelector = ({ editingGem, onEffectToggle, onClose }) => {
-  if (!editingGem) return null;
+export const EffectSelector = ({ editingGem, showEffectSelector, onEffectToggle, onClose }) => {
+  if (!editingGem || !showEffectSelector) return null;
 
   return (
     <div
