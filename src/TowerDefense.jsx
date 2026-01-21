@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import EmojiPicker from 'emoji-picker-react';
+
+// Components
+import { FieldInputEditor, EffectSelector, EmojiSelector } from './components/admin';
 
 // Config
 import {
   GRID_SIZE, COLS, ROWS, TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT,
-  DEFAULT_GEM_TYPES, EFFECT_NAMES, isInSpawnZone, isInGoalZone, isInCheckpointZone
+  DEFAULT_GEM_TYPES, isInSpawnZone, isInGoalZone, isInCheckpointZone
 } from './config/constants';
 import { fetchGems, fetchRecipes, createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe, fetchLeaderboard, submitScore } from './services/api';
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart } from './services/gameLogic';
@@ -14,6 +16,11 @@ import { getEnemyPosition, findTowerTarget, createProjectile } from './services/
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useImages } from './hooks/useImages';
 import { useCamera } from './hooks/useCamera';
+import { useUI } from './hooks/useUI';
+import { useEnemies } from './hooks/useEnemies';
+import { useTowers } from './hooks/useTowers';
+import { useAdmin } from './hooks/useAdmin';
+import { useGameState } from './hooks/useGameState';
 
 // Renderers
 import {
@@ -34,43 +41,17 @@ const TowerDefense = () => {
   const { pseudo, bestScore, lastScore, updatePseudo, saveScore } = useLocalStorage();
   const { logoImage, grassImage, portailImage, arriveeImage, checkpointImages, grassCanvasRef } = useImages();
   const { camera, setCamera, isDragging, setIsDragging, dragStart, setDragStart, getZoom, clampCamera, zoomIn, zoomOut, resetCamera } = useCamera();
+  const { hoveredTower, setHoveredTower, hoveredCell, setHoveredCell, hoveredButton, setHoveredButton, hoveredMenuButton, setHoveredMenuButton, mousePos, setMousePos, contextMenu, setContextMenu } = useUI();
+  const { enemies, setEnemies, projectiles, setProjectiles } = useEnemies();
+  const { towers, setTowers, tempTowers, setTempTowers, selectedTowerToDelete, setSelectedTowerToDelete, selectedTempTower, setSelectedTempTower, deleteTower, clearTempTowers } = useTowers();
+  const { adminPage, setAdminPage, editingGem, setEditingGem, adminMessage, setAdminMessage, editingRecipe, setEditingRecipe, showColorPicker, setShowColorPicker, colorPickerPosition, setColorPickerPosition, showEffectSelector, setShowEffectSelector, showEmojiSelector, setShowEmojiSelector, showRecipeEditor, setShowRecipeEditor, editingField, setEditingField, fieldInputValue, setFieldInputValue, fieldInputPosition, setFieldInputPosition } = useAdmin();
+  const { gameState, setGameState, lives, setLives, wave, setWave, score, setScore, placementCount, setPlacementCount, gameSpeed, setGameSpeed, errorMessage, setErrorMessage, resetGame, goToMenu } = useGameState();
 
-  // Game state
-  const [gameState, setGameState] = useState('menu');
-  const [lives, setLives] = useState(20);
-  const [wave, setWave] = useState(1);
-  const [score, setScore] = useState(0);
-  const [towers, setTowers] = useState([]);
-  const [tempTowers, setTempTowers] = useState([]);
-  const [placementCount, setPlacementCount] = useState(0);
-  const [selectedTempTower, setSelectedTempTower] = useState(null);
-  const [enemies, setEnemies] = useState([]);
-  const [projectiles, setProjectiles] = useState([]);
+  // Other state
   const [currentPath, setCurrentPath] = useState(null);
-  const [hoveredTower, setHoveredTower] = useState(null);
-  const [gameSpeed, setGameSpeed] = useState(1);
-  const [selectedTowerToDelete, setSelectedTowerToDelete] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null);
-  const [hoveredCell, setHoveredCell] = useState(null);
   const [previousWaveHealth, setPreviousWaveHealth] = useState(0);
-  const [hoveredButton, setHoveredButton] = useState(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [hoveredMenuButton, setHoveredMenuButton] = useState(null);
   const [gemTypes, setGemTypes] = useState(DEFAULT_GEM_TYPES);
-  const [contextMenu, setContextMenu] = useState(null);
   const [fusionRecipes, setFusionRecipes] = useState([]);
-  const [adminPage, setAdminPage] = useState(null);
-  const [editingGem, setEditingGem] = useState(null);
-  const [adminMessage, setAdminMessage] = useState(null);
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [colorPickerPosition, setColorPickerPosition] = useState({ x: 0, y: 0 });
-  const [showEffectSelector, setShowEffectSelector] = useState(false);
-  const [showEmojiSelector, setShowEmojiSelector] = useState(false);
-  const [showRecipeEditor, setShowRecipeEditor] = useState(false);
-  const [editingRecipe, setEditingRecipe] = useState(null);
-  const [editingField, setEditingField] = useState(null);
-  const [fieldInputValue, setFieldInputValue] = useState('');
-  const [fieldInputPosition, setFieldInputPosition] = useState({ x: 0, y: 0 });
   const [leaderboard, setLeaderboard] = useState([]);
 
   // Refs
@@ -159,13 +140,6 @@ const TowerDefense = () => {
     spawnWave();
   };
 
-  // Delete tower
-  const deleteTower = () => {
-    if (!selectedTowerToDelete) return;
-    setTowers(prev => prev.filter(t => t.id !== selectedTowerToDelete));
-    setSelectedTowerToDelete(null);
-  };
-
   // Place tower
   const placeTower = (gridX, gridY) => {
     if (gameState !== 'preparation' || placementCount >= 5) return;
@@ -177,34 +151,30 @@ const TowerDefense = () => {
   };
 
   // Reset game
-  const resetGame = () => {
+  const resetGameFull = () => {
     setGameState('preparation');
-    setLives(20);
-    setWave(1);
-    setScore(0);
     setTowers([]);
     setTempTowers([]);
-    setPlacementCount(0);
     setEnemies([]);
     setProjectiles([]);
     setCurrentPath(null);
     setSelectedTempTower(null);
     setSelectedTowerToDelete(null);
     setContextMenu(null);
-    setErrorMessage(null);
     resetCamera();
+    resetGame(); // Call hook's resetGame for game state
   };
 
   // Go to menu
-  const goToMenu = () => {
+  const goToMenuFull = () => {
     if (score > 0) saveScore(score);
-    setGameState('menu');
+    goToMenu(); // Call hook's goToMenu
     setAdminPage(null);
   };
 
   // Start new game
   const startNewGame = () => {
-    resetGame();
+    resetGameFull();
     setGameState('preparation');
     scoreSubmittedRef.current = false; // Réinitialiser le flag pour permettre la soumission de la prochaine partie
   };
@@ -390,8 +360,8 @@ const TowerDefense = () => {
     const toolbarButtons = getToolbarButtons({
       gameState, lives, wave, score, placementCount, camera, gameSpeed,
       tempTowers, selectedTempTower, selectedTowerToDelete, towers, enemies,
-      goToMenu, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
-      setSelectedTempTower, deleteTower, startWave, resetGame
+      goToMenu: goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
+      setSelectedTempTower, deleteTower, startWave, resetGame: resetGameFull
     });
 
     if (!isMenuOrAdmin) {
@@ -775,8 +745,8 @@ const TowerDefense = () => {
       const toolbarButtons = getToolbarButtons({
         gameState, lives, wave, score, placementCount, camera, gameSpeed,
         tempTowers, selectedTempTower, selectedTowerToDelete, towers, enemies,
-        goToMenu, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
-        setSelectedTempTower, deleteTower, startWave, resetGame
+        goToMenu: goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
+        setSelectedTempTower, deleteTower, startWave, resetGame: resetGameFull
       });
       for (const btn of toolbarButtons) {
         if (x >= btn.x && x <= btn.x + btn.width && !btn.disabled && btn.action) {
@@ -885,8 +855,8 @@ const TowerDefense = () => {
       const toolbarButtons = getToolbarButtons({
         gameState, lives, wave, score, placementCount, camera, gameSpeed,
         tempTowers, selectedTempTower, selectedTowerToDelete, towers, enemies,
-        goToMenu, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
-        setSelectedTempTower, deleteTower, startWave, resetGame
+        goToMenu: goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
+        setSelectedTempTower, deleteTower, startWave, resetGame: resetGameFull
       });
       let found = null;
       for (const btn of toolbarButtons) {
@@ -1007,229 +977,35 @@ const TowerDefense = () => {
         )}
 
         {/* Field Input Editor */}
-        {editingField && editingGem && (
-          <div
-            style={{
-              position: 'absolute',
-              left: `${fieldInputPosition.x}px`,
-              top: `${fieldInputPosition.y}px`,
-              zIndex: 1001,
-              backgroundColor: 'rgba(15, 23, 42, 0.98)',
-              padding: '15px',
-              borderRadius: '8px',
-              border: '2px solid #3b82f6',
-              minWidth: '300px'
-            }}
-          >
-            <div style={{ marginBottom: '10px' }}>
-              <label style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
-                {editingField === 'id' && 'ID (ex: EMERALD)'}
-                {editingField === 'name' && 'Nom de la gemme'}
-                {editingField === 'damage' && 'Dégâts'}
-                {editingField === 'speed' && 'Vitesse (ms)'}
-                {editingField === 'range' && 'Portée'}
-              </label>
-              <input
-                type={['damage', 'speed', 'range'].includes(editingField) ? 'number' : 'text'}
-                value={fieldInputValue}
-                onChange={(e) => setFieldInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const parsedValue = ['damage', 'speed', 'range'].includes(editingField)
-                      ? parseInt(fieldInputValue) || 0
-                      : fieldInputValue;
-                    setEditingGem(prev => ({ ...prev, [editingField]: parsedValue }));
-                    setEditingField(null);
-                  } else if (e.key === 'Escape') {
-                    setEditingField(null);
-                  }
-                }}
-                autoFocus
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                  color: '#f1f5f9',
-                  border: '1px solid #475569',
-                  borderRadius: '5px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => {
-                  const parsedValue = ['damage', 'speed', 'range'].includes(editingField)
-                    ? parseInt(fieldInputValue) || 0
-                    : fieldInputValue;
-                  setEditingGem(prev => ({ ...prev, [editingField]: parsedValue }));
-                  setEditingField(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  backgroundColor: '#22c55e',
-                  color: '#f1f5f9',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 'bold'
-                }}
-              >
-                ✓ Valider
-              </button>
-              <button
-                onClick={() => setEditingField(null)}
-                style={{
-                  flex: 1,
-                  padding: '8px',
-                  backgroundColor: '#64748b',
-                  color: '#f1f5f9',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 'bold'
-                }}
-              >
-                ✗ Annuler
-              </button>
-            </div>
-          </div>
-        )}
+        <FieldInputEditor
+          editingField={editingField}
+          fieldInputValue={fieldInputValue}
+          fieldInputPosition={fieldInputPosition}
+          onValueChange={setFieldInputValue}
+          onSave={() => {
+            const parsedValue = ['damage', 'speed', 'range'].includes(editingField)
+              ? parseInt(fieldInputValue) || 0
+              : fieldInputValue;
+            setEditingGem(prev => ({ ...prev, [editingField]: parsedValue }));
+            setEditingField(null);
+          }}
+          onCancel={() => setEditingField(null)}
+        />
 
         {/* Effect Selector - Multi-sélection */}
-        {showEffectSelector && editingGem && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 1000,
-              backgroundColor: 'rgba(15, 23, 42, 0.98)',
-              padding: '30px',
-              borderRadius: '15px',
-              border: '3px solid #3b82f6',
-              minWidth: '400px',
-              maxHeight: '600px',
-              overflowY: 'auto'
-            }}
-          >
-            <h3 style={{ color: '#f1f5f9', marginBottom: '10px', fontSize: '20px', fontWeight: 'bold', textAlign: 'center' }}>
-              Sélectionnez les effets
-            </h3>
-            <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', marginBottom: '20px' }}>
-              Vous pouvez sélectionner plusieurs effets
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {Object.entries(EFFECT_NAMES).map(([key, name]) => {
-                const currentEffects = editingGem.effect ? editingGem.effect.split(',') : [];
-                const isSelected = currentEffects.includes(key);
-
-                return (
-                  <label
-                    key={key}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '12px',
-                      backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(30, 41, 59, 0.5)',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      border: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.8)';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = 'rgba(30, 41, 59, 0.5)';
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleEffectToggle(key)}
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        marginRight: '12px',
-                        cursor: 'pointer',
-                        accentColor: '#3b82f6'
-                      }}
-                    />
-                    <div>
-                      <div style={{ color: '#f1f5f9', fontSize: '16px', fontWeight: isSelected ? 'bold' : 'normal' }}>
-                        {name}
-                      </div>
-                      <div style={{ color: '#64748b', fontSize: '12px' }}>
-                        {key}
-                      </div>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => setShowEffectSelector(false)}
-              style={{
-                marginTop: '20px',
-                width: '100%',
-                padding: '12px',
-                backgroundColor: '#3b82f6',
-                color: '#f1f5f9',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 'bold'
-              }}
-            >
-              Valider
-            </button>
-          </div>
-        )}
+        <EffectSelector
+          editingGem={editingGem}
+          showEffectSelector={showEffectSelector}
+          onEffectToggle={handleEffectToggle}
+          onClose={() => setShowEffectSelector(false)}
+        />
 
         {/* Emoji Picker */}
-        {showEmojiSelector && editingGem && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 1000
-            }}
-          >
-            <EmojiPicker
-              onEmojiClick={handleEmojiClick}
-              width={400}
-              height={500}
-              theme="dark"
-              searchPlaceholder="Rechercher un emoji..."
-            />
-            <button
-              onClick={() => setShowEmojiSelector(false)}
-              style={{
-                marginTop: '10px',
-                width: '100%',
-                padding: '10px',
-                backgroundColor: '#a855f7',
-                color: '#f1f5f9',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 'bold'
-              }}
-            >
-              Fermer
-            </button>
-          </div>
-        )}
+        <EmojiSelector
+          showEmojiSelector={showEmojiSelector}
+          onEmojiClick={handleEmojiClick}
+          onClose={() => setShowEmojiSelector(false)}
+        />
 
         {/* Recipe Editor */}
         {showRecipeEditor && editingRecipe && (
