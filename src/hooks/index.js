@@ -3,6 +3,7 @@
  */
 
 export { useGameState } from './useGameState';
+export { useGameData } from './useGameData';
 export { useTowers } from './useTowers';
 export { useAdmin } from './useAdmin';
 export { useAdminHandlers } from './useAdminHandlers';

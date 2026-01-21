@@ -6,9 +6,9 @@ import { FieldInputEditor, EffectSelector, EmojiSelector } from './components/ad
 // Config
 import {
   GRID_SIZE, COLS, ROWS, TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT,
-  DEFAULT_GEM_TYPES, isInSpawnZone, isInGoalZone, isInCheckpointZone
+  isInSpawnZone, isInGoalZone, isInCheckpointZone
 } from './config/constants';
-import { fetchGems, fetchRecipes, createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe, fetchLeaderboard, submitScore } from './services/api';
+import { createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe, submitScore, fetchLeaderboard } from './services/api';
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
 
@@ -22,6 +22,7 @@ import { useTowers } from './hooks/useTowers';
 import { useAdmin } from './hooks/useAdmin';
 import { useAdminHandlers } from './hooks/useAdminHandlers';
 import { useGameState } from './hooks/useGameState';
+import { useGameData } from './hooks/useGameData';
 
 // Renderers
 import {
@@ -48,13 +49,11 @@ const TowerDefense = () => {
   const { adminPage, setAdminPage, editingGem, setEditingGem, adminMessage, setAdminMessage, editingRecipe, setEditingRecipe, showColorPicker, setShowColorPicker, colorPickerPosition, setColorPickerPosition, showEffectSelector, setShowEffectSelector, showEmojiSelector, setShowEmojiSelector, showRecipeEditor, setShowRecipeEditor, editingField, setEditingField, fieldInputValue, setFieldInputValue, fieldInputPosition, setFieldInputPosition } = useAdmin();
   const { gameState, setGameState, lives, setLives, wave, setWave, score, setScore, placementCount, setPlacementCount, gameSpeed, setGameSpeed, errorMessage, setErrorMessage, resetGame, goToMenu } = useGameState();
   const { handleColorChange, handleEffectToggle, handleEmojiClick } = useAdminHandlers({ setEditingGem, setShowColorPicker, setShowEmojiSelector });
+  const { gemTypes, setGemTypes, fusionRecipes, setFusionRecipes, leaderboard, setLeaderboard } = useGameData();
 
   // Other state
   const [currentPath, setCurrentPath] = useState(null);
   const [previousWaveHealth, setPreviousWaveHealth] = useState(0);
-  const [gemTypes, setGemTypes] = useState(DEFAULT_GEM_TYPES);
-  const [fusionRecipes, setFusionRecipes] = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
 
   // Refs
   const gameLoopRef = useRef();
@@ -63,13 +62,6 @@ const TowerDefense = () => {
   const enemyIdCounter = useRef(0);
   const colorPickerRef = useRef(null);
   const scoreSubmittedRef = useRef(false);
-
-  // Charger les donnees depuis l'API
-  useEffect(() => {
-    fetchGems().then(gems => setGemTypes(gems)).catch(() => {});
-    fetchRecipes().then(recipes => setFusionRecipes(recipes)).catch(() => {});
-    fetchLeaderboard().then(scores => setLeaderboard(scores)).catch(() => {});
-  }, []);
 
   // Verifier si une fusion est possible
   const checkFusionPossible = useCallback((tower) => {
