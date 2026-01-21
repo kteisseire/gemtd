@@ -20,6 +20,7 @@ import { useUI } from './hooks/useUI';
 import { useEnemies } from './hooks/useEnemies';
 import { useTowers } from './hooks/useTowers';
 import { useAdmin } from './hooks/useAdmin';
+import { useAdminHandlers } from './hooks/useAdminHandlers';
 import { useGameState } from './hooks/useGameState';
 
 // Renderers
@@ -46,6 +47,7 @@ const TowerDefense = () => {
   const { towers, setTowers, tempTowers, setTempTowers, selectedTowerToDelete, setSelectedTowerToDelete, selectedTempTower, setSelectedTempTower, deleteTower, clearTempTowers } = useTowers();
   const { adminPage, setAdminPage, editingGem, setEditingGem, adminMessage, setAdminMessage, editingRecipe, setEditingRecipe, showColorPicker, setShowColorPicker, colorPickerPosition, setColorPickerPosition, showEffectSelector, setShowEffectSelector, showEmojiSelector, setShowEmojiSelector, showRecipeEditor, setShowRecipeEditor, editingField, setEditingField, fieldInputValue, setFieldInputValue, fieldInputPosition, setFieldInputPosition } = useAdmin();
   const { gameState, setGameState, lives, setLives, wave, setWave, score, setScore, placementCount, setPlacementCount, gameSpeed, setGameSpeed, errorMessage, setErrorMessage, resetGame, goToMenu } = useGameState();
+  const { handleColorChange, handleEffectToggle, handleEmojiClick } = useAdminHandlers({ setEditingGem, setShowColorPicker, setShowEmojiSelector });
 
   // Other state
   const [currentPath, setCurrentPath] = useState(null);
@@ -903,38 +905,6 @@ const TowerDefense = () => {
   };
 
   const handleMouseUp = () => setIsDragging(false);
-
-  // Handler pour le color picker
-  const handleColorChange = (e) => {
-    const newColor = e.target.value;
-    setEditingGem(prev => ({ ...prev, color: newColor }));
-    setShowColorPicker(false);
-  };
-
-  // Handler pour le sélecteur d'effets (multi-sélection)
-  const handleEffectToggle = (effectKey) => {
-    setEditingGem(prev => {
-      const currentEffects = prev.effect ? prev.effect.split(',') : [];
-      const effectIndex = currentEffects.indexOf(effectKey);
-
-      let newEffects;
-      if (effectIndex >= 0) {
-        // Retirer l'effet
-        newEffects = currentEffects.filter(e => e !== effectKey);
-      } else {
-        // Ajouter l'effet
-        newEffects = [...currentEffects, effectKey];
-      }
-
-      return { ...prev, effect: newEffects.filter(e => e).join(',') || 'none' };
-    });
-  };
-
-  // Handler pour le sélecteur d'emojis
-  const handleEmojiClick = (emojiData) => {
-    setEditingGem(prev => ({ ...prev, icon: emojiData.emoji }));
-    setShowEmojiSelector(false);
-  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900">
