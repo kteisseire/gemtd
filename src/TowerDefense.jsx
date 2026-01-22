@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // Components
-import { FieldInputEditor, EffectSelector, EmojiSelector } from './components/admin';
+import { FieldInputEditor, EffectSelector, EmojiSelector, RecipeEditor } from './components/admin';
 
 // Config
 import { TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config/constants';
@@ -23,6 +23,7 @@ import { useGameData } from './hooks/useGameData';
 import { useGameLoop } from './hooks/useGameLoop';
 import { useCanvasHandlers } from './hooks/useCanvasHandlers';
 import { useMouseHandlers } from './hooks/useMouseHandlers';
+import { useFusion } from './hooks/useFusion';
 
 // Renderers
 import {
@@ -50,6 +51,7 @@ const TowerDefense = () => {
   const { gameState, setGameState, lives, setLives, wave, setWave, score, setScore, placementCount, setPlacementCount, gameSpeed, setGameSpeed, errorMessage, setErrorMessage, resetGame, goToMenu } = useGameState();
   const { handleColorChange, handleEffectToggle, handleEmojiClick } = useAdminHandlers({ setEditingGem, setShowColorPicker, setShowEmojiSelector });
   const { gemTypes, setGemTypes, fusionRecipes, setFusionRecipes, leaderboard, setLeaderboard } = useGameData();
+  const { checkFusionPossible, performFusion } = useFusion({ towers, setTowers, fusionRecipes, gemTypes });
 
   // Other state
   const [currentPath, setCurrentPath] = useState(null);
@@ -59,52 +61,6 @@ const TowerDefense = () => {
   const enemyIdCounter = useRef(0);
   const colorPickerRef = useRef(null);
   const scoreSubmittedRef = useRef(false);
-
-  // Verifier si une fusion est possible
-  const checkFusionPossible = useCallback((tower) => {
-    if (!tower || tower.type === 'BASE') return null;
-    for (const recipe of fusionRecipes) {
-      const requiredGems = recipe.required_gems.split(',');
-      if (!requiredGems.includes(tower.type)) continue;
-      const availableRecipeGems = towers.filter(t => requiredGems.includes(t.type));
-      if (availableRecipeGems.length >= recipe.min_count) {
-        return { recipe, availableGems: availableRecipeGems, resultGemId: recipe.result_gem_id };
-      }
-    }
-    return null;
-  }, [fusionRecipes, towers]);
-
-  // Executer la fusion
-  const performFusion = useCallback((selectedTower, fusionInfo) => {
-    const updatedTowers = [...towers];
-    const selectedIndex = updatedTowers.findIndex(t => t.id === selectedTower.id);
-    if (selectedIndex === -1) return;
-
-    const fusedGemType = gemTypes[fusionInfo.resultGemId];
-    updatedTowers[selectedIndex] = {
-      id: selectedTower.id, gridX: selectedTower.gridX, gridY: selectedTower.gridY,
-      x: selectedTower.x, y: selectedTower.y, type: fusionInfo.resultGemId,
-      level: selectedTower.level, isTemporary: false, ...fusedGemType
-    };
-
-    const otherRecipeGems = fusionInfo.availableGems.filter(g => g.id !== selectedTower.id);
-    const shuffled = [...otherRecipeGems].sort(() => Math.random() - 0.5);
-    const gemsToConvert = shuffled.slice(0, 2);
-    const baseGemType = gemTypes['BASE'];
-
-    gemsToConvert.forEach(gem => {
-      const idx = updatedTowers.findIndex(t => t.id === gem.id);
-      if (idx !== -1) {
-        updatedTowers[idx] = {
-          id: updatedTowers[idx].id, gridX: updatedTowers[idx].gridX, gridY: updatedTowers[idx].gridY,
-          x: updatedTowers[idx].x, y: updatedTowers[idx].y, type: 'BASE',
-          level: updatedTowers[idx].level, isTemporary: false, ...baseGemType
-        };
-      }
-    });
-
-    setTowers(updatedTowers);
-  }, [towers, gemTypes]);
 
   // Spawn wave
   const spawnWave = useCallback(() => {
@@ -171,6 +127,47 @@ const TowerDefense = () => {
   };
 
   // Game loop (extracted to useGameLoop hook)
+  // Recipe save handler
+  const handleRecipeSave = () => {
+    if (editingRecipe.required_gems.length === 0) {
+      setAdminMessage({ type: 'error', text: 'Sélectionnez au moins un ingrédient !' });
+      setTimeout(() => setAdminMessage(null), 3000);
+      return;
+    }
+    if (!editingRecipe.result_gem_id) {
+      setAdminMessage({ type: 'error', text: 'Sélectionnez une gemme résultat !' });
+      setTimeout(() => setAdminMessage(null), 3000);
+      return;
+    }
+
+    const recipeData = {
+      required_gems: editingRecipe.required_gems.join(','),
+      result_gem_id: editingRecipe.result_gem_id,
+      min_count: editingRecipe.min_count
+    };
+
+    const isNewRecipe = !editingRecipe.id;
+    const apiCall = isNewRecipe ? createRecipe(recipeData) : updateRecipe(editingRecipe.id, recipeData);
+
+    apiCall
+      .then(savedRecipe => {
+        if (isNewRecipe) {
+          setFusionRecipes(prev => [...prev, savedRecipe]);
+          setAdminMessage({ type: 'success', text: 'Recette ajoutée en BDD !' });
+        } else {
+          setFusionRecipes(prev => prev.map(r => r.id === editingRecipe.id ? savedRecipe : r));
+          setAdminMessage({ type: 'success', text: 'Recette modifiée en BDD !' });
+        }
+        setTimeout(() => setAdminMessage(null), 3000);
+        setShowRecipeEditor(false);
+        setEditingRecipe(null);
+      })
+      .catch(err => {
+        setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
+        setTimeout(() => setAdminMessage(null), 3000);
+      });
+  };
+
   useGameLoop({
     gameState, gameSpeed, towers, tempTowers, enemies, currentPath,
     setEnemies, setProjectiles, setLives, setScore
@@ -379,228 +376,17 @@ const TowerDefense = () => {
         />
 
         {/* Recipe Editor */}
-        {showRecipeEditor && editingRecipe && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 1000,
-              backgroundColor: 'rgba(15, 23, 42, 0.98)',
-              padding: '30px',
-              borderRadius: '15px',
-              border: '3px solid #a855f7',
-              width: '700px',
-              maxHeight: '90vh',
-              overflowY: 'auto'
-            }}
-          >
-            <h2 style={{ color: '#f1f5f9', marginBottom: '10px', fontSize: '24px', fontWeight: 'bold', textAlign: 'center' }}>
-              🔮 {editingRecipe.id ? 'Modifier la recette' : 'Créer une recette de fusion'}
-            </h2>
-
-            {/* Section Ingrédients */}
-            <div style={{ marginTop: '25px' }}>
-              <h3 style={{ color: '#a855f7', fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>
-                Ingrédients requis
-              </h3>
-              <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '15px' }}>
-                Sélectionnez les gemmes nécessaires pour cette fusion
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
-                {Object.entries(gemTypes)
-                  .filter(([key]) => key !== 'BASE')
-                  .map(([key, gem]) => {
-                    const isSelected = editingRecipe.required_gems.includes(key);
-                    return (
-                      <div
-                        key={key}
-                        onClick={() => {
-                          const ingredients = [...editingRecipe.required_gems];
-                          const index = ingredients.indexOf(key);
-                          if (index >= 0) {
-                            ingredients.splice(index, 1);
-                          } else {
-                            ingredients.push(key);
-                          }
-                          setEditingRecipe(prev => ({ ...prev, required_gems: ingredients }));
-                        }}
-                        style={{
-                          padding: '12px',
-                          backgroundColor: isSelected ? 'rgba(168, 85, 247, 0.3)' : 'rgba(30, 41, 59, 0.5)',
-                          borderRadius: '8px',
-                          border: isSelected ? '2px solid #a855f7' : '2px solid transparent',
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{ fontSize: '32px', marginBottom: '5px' }}>{gem.icon}</div>
-                        <div style={{ color: '#f1f5f9', fontSize: '12px', fontWeight: isSelected ? 'bold' : 'normal' }}>
-                          {key}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            {/* Section Résultat */}
-            <div style={{ marginTop: '30px' }}>
-              <h3 style={{ color: '#22c55e', fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>
-                Gemme résultat
-              </h3>
-              <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '15px' }}>
-                Sélectionnez la gemme qui sera créée
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
-                {Object.entries(gemTypes)
-                  .filter(([key]) => key !== 'BASE')
-                  .map(([key, gem]) => {
-                    const isSelected = editingRecipe.result_gem_id === key;
-                    return (
-                      <div
-                        key={key}
-                        onClick={() => setEditingRecipe(prev => ({ ...prev, result_gem_id: key }))}
-                        style={{
-                          padding: '12px',
-                          backgroundColor: isSelected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(30, 41, 59, 0.5)',
-                          borderRadius: '8px',
-                          border: isSelected ? '2px solid #22c55e' : '2px solid transparent',
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{ fontSize: '32px', marginBottom: '5px' }}>{gem.icon}</div>
-                        <div style={{ color: '#f1f5f9', fontSize: '12px', fontWeight: isSelected ? 'bold' : 'normal' }}>
-                          {key}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            {/* Section Minimum */}
-            <div style={{ marginTop: '30px' }}>
-              <h3 style={{ color: '#3b82f6', fontSize: '18px', fontWeight: 'bold', marginBottom: '15px' }}>
-                Nombre minimum de gemmes
-              </h3>
-              <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '15px' }}>
-                Nombre minimum d'ingrédients requis pour déclencher la fusion
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <input
-                  type="range"
-                  min="2"
-                  max="10"
-                  value={editingRecipe.min_count}
-                  onChange={(e) => setEditingRecipe(prev => ({ ...prev, min_count: parseInt(e.target.value) }))}
-                  style={{
-                    flex: 1,
-                    height: '8px',
-                    borderRadius: '4px',
-                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${(editingRecipe.min_count - 2) * 12.5}%, #1e293b ${(editingRecipe.min_count - 2) * 12.5}%, #1e293b 100%)`,
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                />
-                <div style={{
-                  minWidth: '60px',
-                  padding: '10px',
-                  backgroundColor: '#3b82f6',
-                  color: '#f1f5f9',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  fontSize: '20px',
-                  fontWeight: 'bold'
-                }}>
-                  {editingRecipe.min_count}
-                </div>
-              </div>
-            </div>
-
-            {/* Boutons */}
-            <div style={{ marginTop: '30px', display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => {
-                  setShowRecipeEditor(false);
-                  setEditingRecipe(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  backgroundColor: '#475569',
-                  color: '#f1f5f9',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 'bold'
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => {
-                  // Sauvegarder la recette
-                  if (editingRecipe.required_gems.length === 0) {
-                    setAdminMessage({ type: 'error', text: 'Sélectionnez au moins un ingrédient !' });
-                    setTimeout(() => setAdminMessage(null), 3000);
-                    return;
-                  }
-                  if (!editingRecipe.result_gem_id) {
-                    setAdminMessage({ type: 'error', text: 'Sélectionnez une gemme résultat !' });
-                    setTimeout(() => setAdminMessage(null), 3000);
-                    return;
-                  }
-
-                  const recipeData = {
-                    required_gems: editingRecipe.required_gems.join(','),
-                    result_gem_id: editingRecipe.result_gem_id,
-                    min_count: editingRecipe.min_count
-                  };
-
-                  const isNewRecipe = !editingRecipe.id;
-                  const apiCall = isNewRecipe ? createRecipe(recipeData) : updateRecipe(editingRecipe.id, recipeData);
-
-                  apiCall
-                    .then(savedRecipe => {
-                      if (isNewRecipe) {
-                        setFusionRecipes(prev => [...prev, savedRecipe]);
-                        setAdminMessage({ type: 'success', text: 'Recette ajoutée en BDD !' });
-                      } else {
-                        setFusionRecipes(prev => prev.map(r => r.id === editingRecipe.id ? savedRecipe : r));
-                        setAdminMessage({ type: 'success', text: 'Recette modifiée en BDD !' });
-                      }
-                      setTimeout(() => setAdminMessage(null), 3000);
-                      setShowRecipeEditor(false);
-                      setEditingRecipe(null);
-                    })
-                    .catch(err => {
-                      setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
-                      setTimeout(() => setAdminMessage(null), 3000);
-                    });
-                }}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  backgroundColor: '#22c55e',
-                  color: '#f1f5f9',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 'bold'
-                }}
-              >
-                💾 Sauvegarder
-              </button>
-            </div>
-          </div>
-        )}
+        <RecipeEditor
+          showRecipeEditor={showRecipeEditor}
+          editingRecipe={editingRecipe}
+          gemTypes={gemTypes}
+          setEditingRecipe={setEditingRecipe}
+          onSave={handleRecipeSave}
+          onCancel={() => {
+            setShowRecipeEditor(false);
+            setEditingRecipe(null);
+          }}
+        />
 
         {/* Overlay sombre pour les sélecteurs */}
         {(showEffectSelector || showEmojiSelector || showRecipeEditor) && (

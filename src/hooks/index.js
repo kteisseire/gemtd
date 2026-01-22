@@ -10,6 +10,7 @@ export { useAdmin } from './useAdmin';
 export { useAdminHandlers } from './useAdminHandlers';
 export { useCanvasHandlers } from './useCanvasHandlers';
 export { useMouseHandlers } from './useMouseHandlers';
+export { useFusion } from './useFusion';
 export { useEnemies } from './useEnemies';
 export { useUI } from './useUI';
 export { useLocalStorage } from './useLocalStorage';

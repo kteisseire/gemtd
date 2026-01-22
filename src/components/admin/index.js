@@ -5,3 +5,4 @@
 export { FieldInputEditor } from './FieldInputEditor';
 export { EffectSelector } from './EffectSelector';
 export { EmojiSelector } from './EmojiSelector';
+export { RecipeEditor } from './RecipeEditor';
