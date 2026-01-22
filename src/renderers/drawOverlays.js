@@ -62,15 +62,21 @@ export const drawGameOverOverlay = (ctx, score, wave, hoveredButton) => {
   // Dessiner les boutons
   const buttons = getGameOverButtons();
   buttons.forEach(btn => {
-    drawStyledButton(ctx, {
-      x: btn.x,
-      y: btn.y,
-      width: btn.width,
-      height: btn.height,
-      label: btn.label,
-      color: btn.color,
-      isHovered: hoveredButton === btn.id
-    });
+    // Déterminer le variant selon la couleur
+    let variant = 'primary';
+    if (btn.color === '#22c55e') variant = 'success';
+    else if (btn.color === '#6366f1') variant = 'primary';
+
+    drawStyledButton(
+      ctx,
+      btn.x,
+      btn.y,
+      btn.width,
+      btn.height,
+      btn.label,
+      hoveredButton === btn.id,
+      { variant }
+    );
   });
 };
 
