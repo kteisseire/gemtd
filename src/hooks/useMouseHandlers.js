@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, TOOLBAR_HEIGHT, GRID_SIZE, COLS, ROWS, isInSpawnZone, isInGoalZone, isInCheckpointZone } from '../config/constants';
-import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons } from '../renderers';
+import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons } from '../renderers';
 
 /**
  * Hook personnalisé pour gérer les événements de souris
@@ -43,6 +43,20 @@ export const useMouseHandlers = (deps) => {
       const cmButtons = getContextMenuButtons(contextMenu, checkFusionPossible);
       let found = null;
       for (const btn of cmButtons) {
+        if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
+          found = btn.id;
+          break;
+        }
+      }
+      setHoveredButton(found);
+      return;
+    }
+
+    // Game Over hover
+    if (gameState === 'gameOver') {
+      const gameOverButtons = getGameOverButtons();
+      let found = null;
+      for (const btn of gameOverButtons) {
         if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
           found = btn.id;
           break;

@@ -1,4 +1,5 @@
 import { CANVAS_WIDTH, CANVAS_HEIGHT, EFFECT_NAMES } from '../config/constants';
+import { drawStyledButton } from './drawButton';
 
 // Dessiner le message d'erreur
 export const drawErrorOverlay = (ctx, errorMessage) => {
@@ -11,8 +12,40 @@ export const drawErrorOverlay = (ctx, errorMessage) => {
   ctx.fillText(errorMessage, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
 };
 
+// Obtenir les boutons de l'écran game over
+export const getGameOverButtons = () => {
+  const centerX = CANVAS_WIDTH / 2;
+  const centerY = CANVAS_HEIGHT / 2;
+  const buttonWidth = 200;
+  const buttonHeight = 50;
+  const gap = 20;
+
+  return [
+    {
+      id: 'restart',
+      x: centerX - buttonWidth - gap / 2,
+      y: centerY + 80,
+      width: buttonWidth,
+      height: buttonHeight,
+      label: '🔄 Relancer',
+      color: '#22c55e',
+      action: 'restart'
+    },
+    {
+      id: 'menu',
+      x: centerX + gap / 2,
+      y: centerY + 80,
+      width: buttonWidth,
+      height: buttonHeight,
+      label: '🏠 Menu',
+      color: '#6366f1',
+      action: 'menu'
+    }
+  ];
+};
+
 // Dessiner l'ecran de game over
-export const drawGameOverOverlay = (ctx, score, wave) => {
+export const drawGameOverOverlay = (ctx, score, wave, hoveredButton) => {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -25,6 +58,20 @@ export const drawGameOverOverlay = (ctx, score, wave) => {
   ctx.fillStyle = '#f1f5f9';
   ctx.font = '24px Arial';
   ctx.fillText(`Score: ${score} | Vague: ${wave}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 20);
+
+  // Dessiner les boutons
+  const buttons = getGameOverButtons();
+  buttons.forEach(btn => {
+    drawStyledButton(ctx, {
+      x: btn.x,
+      y: btn.y,
+      width: btn.width,
+      height: btn.height,
+      label: btn.label,
+      color: btn.color,
+      isHovered: hoveredButton === btn.id
+    });
+  });
 };
 
 // Dessiner le tooltip de tour

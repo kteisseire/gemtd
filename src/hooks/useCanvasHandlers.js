@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, TOOLBAR_HEIGHT, GRID_SIZE } from '../config/constants';
-import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons } from '../renderers';
+import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons } from '../renderers';
 import { createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe } from '../services/api';
 
 /**
@@ -86,6 +86,23 @@ export const useCanvasHandlers = (deps) => {
       setContextMenu(null);
       setSelectedTowerToDelete(null);
       setSelectedTempTower(null);
+      return;
+    }
+
+    // Game Over clicks
+    if (gameState === 'gameOver') {
+      const gameOverButtons = getGameOverButtons();
+      for (const btn of gameOverButtons) {
+        if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
+          if (btn.action === 'restart') {
+            resetGameFull();
+            startNewGame();
+          } else if (btn.action === 'menu') {
+            goToMenuFull();
+          }
+          return;
+        }
+      }
       return;
     }
 

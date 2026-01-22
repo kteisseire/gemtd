@@ -33,7 +33,7 @@ import {
   drawAdminPage,
   drawPath, drawSpawnPortal, drawGoal, drawCheckpoints,
   drawTowers, drawTempTowers, drawEnemies, drawProjectiles, drawPlacementPreview,
-  drawErrorOverlay, drawGameOverOverlay, drawTowerTooltip, drawToolbarTooltip,
+  drawErrorOverlay, drawGameOverOverlay, getGameOverButtons, drawTowerTooltip, drawToolbarTooltip,
   drawContextMenu
 } from './renderers';
 
@@ -285,7 +285,7 @@ const TowerDefense = () => {
 
     // Overlays
     if (errorMessage) drawErrorOverlay(ctx, errorMessage);
-    if (gameState === 'gameOver') drawGameOverOverlay(ctx, score, wave);
+    if (gameState === 'gameOver') drawGameOverOverlay(ctx, score, wave, hoveredButton);
     if (hoveredTower && !contextMenu) {
       drawTowerTooltip(ctx, { hoveredTower, towers, tempTowers, mousePos, gemTypes, fusionRecipes });
     }
