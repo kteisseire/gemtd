@@ -140,8 +140,9 @@ export const useCanvasHandlers = (deps) => {
           else if (btn.action === 'recipes') setAdminPage('recipes');
           else if (btn.action === 'create-gem') {
             setEditingGem({
-              id: '', name: 'Nouvelle Gemme', color: '#888888', damage: 10, speed: 1000,
-              range: 100, effect: 'none', icon: '💎', is_droppable: true, is_base: false
+              id: '', name: 'Nouvelle Gemme', color: '#888888', image: '/images/gemviolette.png',
+              damage: 10, speed: 1000, range: 100, effect: 'none', icon: '💎',
+              is_droppable: true, is_base: false
             });
             setAdminPage('edit-gem');
           }
@@ -198,6 +199,7 @@ export const useCanvasHandlers = (deps) => {
             }
             const gemData = {
               id: editingGem.id.toUpperCase().trim(), name: editingGem.name, color: editingGem.color,
+              image: editingGem.image || '/images/gemviolette.png',
               damage: editingGem.damage, speed: editingGem.speed, range: editingGem.range,
               effect: editingGem.effect, icon: editingGem.icon,
               is_droppable: editingGem.is_droppable ?? true, is_base: editingGem.is_base ?? false

@@ -396,6 +396,7 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
     { label: 'ID', value: editingGem.id || '', key: 'id', icon: '🔑' },
     { label: 'Nom', value: editingGem.name, key: 'name', icon: '📝' },
     { label: 'Couleur', value: editingGem.color, key: 'color', icon: '🎨' },
+    { label: 'Image', value: editingGem.image || '/images/gemviolette.png', key: 'image', icon: '🖼️' },
     { label: 'Dégâts', value: editingGem.damage, key: 'damage', icon: '⚔️' },
     { label: 'Vitesse (ms)', value: editingGem.speed, key: 'speed', icon: '⏱️' },
     { label: 'Portée', value: editingGem.range, key: 'range', icon: '📏' },
@@ -562,7 +563,7 @@ export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes =
     const fieldWidth = panelWidth - 60;
     const fieldHeight = 42;
 
-    const fields = ['id', 'name', 'color', 'damage', 'speed', 'range', 'effect', 'icon', 'is_droppable', 'is_base'];
+    const fields = ['id', 'name', 'color', 'image', 'damage', 'speed', 'range', 'effect', 'icon', 'is_droppable', 'is_base'];
     let y = startY + 120;
 
     fields.forEach(key => {

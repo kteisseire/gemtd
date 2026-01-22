@@ -153,7 +153,7 @@ export const drawCheckpoints = (ctx, checkpointImages, zoom) => {
 
 // Dessiner les tours
 export const drawTowers = (ctx, towers, deps) => {
-  const { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom } = deps;
+  const { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom, gemImages } = deps;
   const fusionPulse = Math.sin(Date.now() / 600) * 0.5 + 0.5;
 
   towers.forEach(tower => {
@@ -193,20 +193,28 @@ export const drawTowers = (ctx, towers, deps) => {
       ctx.stroke();
     }
 
-    ctx.fillStyle = tower.color;
-    ctx.beginPath();
-    ctx.arc(isoX, isoY, 16, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = `${Math.max(14, 16 / zoom)}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(tower.icon, isoX, isoY);
+    // Dessiner l'image de la gemme si disponible, sinon fallback sur emoji
+    const gemImage = gemImages && gemImages[tower.type];
+    if (gemImage) {
+      const gemSize = 48; // Taille de l'image de gemme
+      ctx.drawImage(gemImage, isoX - gemSize / 2, isoY - gemSize / 2, gemSize, gemSize);
+    } else {
+      // Fallback: dessiner un cercle coloré avec l'emoji
+      ctx.fillStyle = tower.color;
+      ctx.beginPath();
+      ctx.arc(isoX, isoY, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = `${Math.max(14, 16 / zoom)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(tower.icon, isoX, isoY);
+    }
   });
 };
 
 // Dessiner les tours temporaires
 export const drawTempTowers = (ctx, tempTowers, deps) => {
-  const { hoveredTower, selectedTempTower, zoom } = deps;
+  const { hoveredTower, selectedTempTower, zoom, gemImages } = deps;
 
   tempTowers.forEach(tower => {
     // Convertir la position de la tour en isométrique
@@ -230,14 +238,24 @@ export const drawTempTowers = (ctx, tempTowers, deps) => {
     }
 
     ctx.globalAlpha = 0.8;
-    ctx.fillStyle = tower.color;
-    ctx.beginPath();
-    ctx.arc(isoX, isoY, 16, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = `${Math.max(14, 16 / zoom)}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(tower.icon, isoX, isoY);
+
+    // Dessiner l'image de la gemme si disponible, sinon fallback sur emoji
+    const gemImage = gemImages && gemImages[tower.type];
+    if (gemImage) {
+      const gemSize = 48; // Taille de l'image de gemme
+      ctx.drawImage(gemImage, isoX - gemSize / 2, isoY - gemSize / 2, gemSize, gemSize);
+    } else {
+      // Fallback: dessiner un cercle coloré avec l'emoji
+      ctx.fillStyle = tower.color;
+      ctx.beginPath();
+      ctx.arc(isoX, isoY, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = `${Math.max(14, 16 / zoom)}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(tower.icon, isoX, isoY);
+    }
+
     ctx.globalAlpha = 1;
   });
 };

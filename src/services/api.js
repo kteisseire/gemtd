@@ -13,6 +13,7 @@ export const fetchGems = async () => {
           gemTypesObj[gem.id] = {
             name: gem.name,
             color: gem.color,
+            image: gem.image || '/images/gemviolette.png',
             damage: gem.damage,
             speed: gem.speed,
             range: gem.range,

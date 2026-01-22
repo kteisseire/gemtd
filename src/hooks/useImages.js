@@ -6,6 +6,7 @@ export const useImages = () => {
   const [portailImage, setPortailImage] = useState(null);
   const [arriveeImage, setArriveeImage] = useState(null);
   const [checkpointImages, setCheckpointImages] = useState({});
+  const [gemImages, setGemImages] = useState({});
   const grassCanvasRef = useRef(null);
 
   // Charger l'image du logo
@@ -70,12 +71,71 @@ export const useImages = () => {
     loadCheckpointImages();
   }, []);
 
+  // Charger les images des gemmes
+  // Cette fonction sera appelée depuis TowerDefense.jsx avec les gemTypes pour charger les images
+  const loadGemImages = (gemTypes) => {
+    const loadedImages = {};
+    const loadPromises = [];
+
+    Object.entries(gemTypes).forEach(([key, gem]) => {
+      const promise = new Promise((resolve) => {
+        const img = new Image();
+        img.src = gem.image || '/images/gemviolette.png';
+        img.onload = () => {
+          loadedImages[key] = img;
+          resolve();
+        };
+        img.onerror = () => {
+          console.error(`Erreur lors du chargement de l'image de gemme ${key}`);
+          // Fallback sur l'image par défaut
+          const fallbackImg = new Image();
+          fallbackImg.src = '/images/gemviolette.png';
+          fallbackImg.onload = () => {
+            loadedImages[key] = fallbackImg;
+            resolve();
+          };
+          fallbackImg.onerror = () => resolve();
+        };
+      });
+      loadPromises.push(promise);
+    });
+
+    Promise.all(loadPromises).then(() => {
+      setGemImages(loadedImages);
+    });
+  };
+
+  useEffect(() => {
+    // Charger l'image par défaut au démarrage
+    const img = new Image();
+    img.src = '/images/gemviolette.png';
+    img.onload = () => {
+      const gems = {
+        BASE: img,
+        RED: img,
+        BLUE: img,
+        GREEN: img,
+        YELLOW: img,
+        PURPLE: img,
+        ORANGE: img,
+        CYAN: img,
+        PINK: img,
+        GRAY: img,
+        BLACK: img,
+      };
+      setGemImages(gems);
+    };
+    img.onerror = () => console.error('Erreur lors du chargement de l\'image de gemme');
+  }, []);
+
   return {
     logoImage,
     grassImage,
     portailImage,
     arriveeImage,
     checkpointImages,
-    grassCanvasRef
+    gemImages,
+    grassCanvasRef,
+    loadGemImages
   };
 };

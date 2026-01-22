@@ -45,7 +45,7 @@ const TowerDefense = () => {
 
   // Custom hooks
   const { pseudo, bestScore, lastScore, updatePseudo, saveScore } = useLocalStorage();
-  const { logoImage, grassImage, portailImage, arriveeImage, checkpointImages, grassCanvasRef } = useImages();
+  const { logoImage, grassImage, portailImage, arriveeImage, checkpointImages, gemImages, grassCanvasRef, loadGemImages } = useImages();
   const { camera, setCamera, isDragging, setIsDragging, dragStart, setDragStart, getZoom, clampCamera, zoomIn, zoomOut, resetCamera } = useCamera();
   const { hoveredTower, setHoveredTower, hoveredCell, setHoveredCell, hoveredButton, setHoveredButton, hoveredMenuButton, setHoveredMenuButton, mousePos, setMousePos, contextMenu, setContextMenu } = useUI();
   const { enemies, setEnemies, projectiles, setProjectiles } = useEnemies();
@@ -243,6 +243,14 @@ const TowerDefense = () => {
       }
     }
   }, [lives, score, wave, pseudo, saveScore, gameState]);
+
+  // Charger les images des gemmes quand gemTypes change
+  useEffect(() => {
+    if (gemTypes && Object.keys(gemTypes).length > 0) {
+      loadGemImages(gemTypes);
+    }
+  }, [gemTypes, loadGemImages]);
+
   // Canvas handlers (extracted to hooks)
   const { handleCanvasClick } = useCanvasHandlers({
     canvasRef, getZoom, camera, gameState, contextMenu, adminPage, pseudo, gemTypes, editingGem, fusionRecipes,
@@ -325,8 +333,8 @@ const TowerDefense = () => {
     drawGoal(ctx, arriveeImage, zoom);
     drawCheckpoints(ctx, checkpointImages, zoom);
 
-    drawTowers(ctx, towers, { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom });
-    drawTempTowers(ctx, tempTowers, { hoveredTower, selectedTempTower, zoom });
+    drawTowers(ctx, towers, { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom, gemImages });
+    drawTempTowers(ctx, tempTowers, { hoveredTower, selectedTempTower, zoom, gemImages });
     drawEnemies(ctx, enemies, currentPath, zoom);
     drawPlacementPreview(ctx, hoveredCell, { gameState, placementCount, towers, tempTowers });
     drawProjectiles(ctx, projectiles);

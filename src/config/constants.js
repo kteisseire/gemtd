@@ -31,17 +31,17 @@ export const CHECKPOINTS = [
 
 // Gemmes par defaut (utilisees si l'API n'est pas disponible)
 export const DEFAULT_GEM_TYPES = {
-  BASE: { name: 'Base', color: '#94a3b8', damage: 0, speed: 1500, range: 80, effect: 'none', icon: '⚪', is_droppable: false, is_base: true },
-  RED: { name: 'Feu', color: '#ef4444', damage: 20, speed: 1000, range: 100, effect: 'damage', icon: '🔥', is_droppable: true, is_base: false },
-  BLUE: { name: 'Glace', color: '#3b82f6', damage: 10, speed: 1200, range: 120, effect: 'slow', icon: '❄️', is_droppable: true, is_base: false },
-  GREEN: { name: 'Poison', color: '#22c55e', damage: 5, speed: 800, range: 90, effect: 'poison', icon: '☠️', is_droppable: true, is_base: false },
-  YELLOW: { name: 'Foudre', color: '#eab308', damage: 15, speed: 600, range: 110, effect: 'fast', icon: '⚡', is_droppable: true, is_base: false },
-  PURPLE: { name: 'Arcane', color: '#a855f7', damage: 25, speed: 1400, range: 130, effect: 'magic', icon: '🔮', is_droppable: true, is_base: false },
-  ORANGE: { name: 'Explosion', color: '#f97316', damage: 18, speed: 1800, range: 80, effect: 'aoe', icon: '💥', is_droppable: true, is_base: false },
-  CYAN: { name: 'Eau', color: '#06b6d4', damage: 8, speed: 400, range: 100, effect: 'rapid', icon: '💧', is_droppable: true, is_base: false },
-  PINK: { name: 'Lumiere', color: '#ec4899', damage: 30, speed: 1500, range: 110, effect: 'crit', icon: '✨', is_droppable: true, is_base: false },
-  GRAY: { name: 'Pierre', color: '#6b7280', damage: 12, speed: 2000, range: 90, effect: 'stun', icon: '🗿', is_droppable: true, is_base: false },
-  BLACK: { name: 'Ombre', color: '#1f2937', damage: 16, speed: 1100, range: 120, effect: 'chain', icon: '🌑', is_droppable: true, is_base: false },
+  BASE: { name: 'Base', color: '#94a3b8', damage: 0, speed: 1500, range: 80, effect: 'none', icon: '⚪', image: '/images/gemviolette.png', is_droppable: false, is_base: true },
+  RED: { name: 'Feu', color: '#ef4444', damage: 20, speed: 1000, range: 100, effect: 'damage', icon: '🔥', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  BLUE: { name: 'Glace', color: '#3b82f6', damage: 10, speed: 1200, range: 120, effect: 'slow', icon: '❄️', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  GREEN: { name: 'Poison', color: '#22c55e', damage: 5, speed: 800, range: 90, effect: 'poison', icon: '☠️', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  YELLOW: { name: 'Foudre', color: '#eab308', damage: 15, speed: 600, range: 110, effect: 'fast', icon: '⚡', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  PURPLE: { name: 'Arcane', color: '#a855f7', damage: 25, speed: 1400, range: 130, effect: 'magic', icon: '🔮', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  ORANGE: { name: 'Explosion', color: '#f97316', damage: 18, speed: 1800, range: 80, effect: 'aoe', icon: '💥', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  CYAN: { name: 'Eau', color: '#06b6d4', damage: 8, speed: 400, range: 100, effect: 'rapid', icon: '💧', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  PINK: { name: 'Lumiere', color: '#ec4899', damage: 30, speed: 1500, range: 110, effect: 'crit', icon: '✨', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  GRAY: { name: 'Pierre', color: '#6b7280', damage: 12, speed: 2000, range: 90, effect: 'stun', icon: '🗿', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
+  BLACK: { name: 'Ombre', color: '#1f2937', damage: 16, speed: 1100, range: 120, effect: 'chain', icon: '🌑', image: '/images/gemviolette.png', is_droppable: true, is_base: false },
 };
 
 // Niveaux de zoom fixes (1 = taille normale)
