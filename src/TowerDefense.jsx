@@ -4,11 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FieldInputEditor, EffectSelector, EmojiSelector } from './components/admin';
 
 // Config
-import {
-  GRID_SIZE, COLS, ROWS, TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT,
-  isInSpawnZone, isInGoalZone, isInCheckpointZone
-} from './config/constants';
-import { createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe, submitScore, fetchLeaderboard } from './services/api';
+import { TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config/constants';
+import { submitScore, fetchLeaderboard } from './services/api';
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
 
@@ -23,17 +20,20 @@ import { useAdmin } from './hooks/useAdmin';
 import { useAdminHandlers } from './hooks/useAdminHandlers';
 import { useGameState } from './hooks/useGameState';
 import { useGameData } from './hooks/useGameData';
+import { useGameLoop } from './hooks/useGameLoop';
+import { useCanvasHandlers } from './hooks/useCanvasHandlers';
+import { useMouseHandlers } from './hooks/useMouseHandlers';
 
 // Renderers
 import {
   clearCanvas, createGrassCache, drawGrassBackground,
   getToolbarButtons, drawToolbar,
-  drawMainMenu, getMenuButtons,
-  drawAdminPage, getAdminButtons,
+  drawMainMenu,
+  drawAdminPage,
   drawPath, drawSpawnPortal, drawGoal, drawCheckpoints,
   drawTowers, drawTempTowers, drawEnemies, drawProjectiles, drawPlacementPreview,
   drawErrorOverlay, drawGameOverOverlay, drawTowerTooltip, drawToolbarTooltip,
-  drawContextMenu, getContextMenuButtons
+  drawContextMenu
 } from './renderers';
 
 const TowerDefense = () => {
@@ -56,9 +56,6 @@ const TowerDefense = () => {
   const [previousWaveHealth, setPreviousWaveHealth] = useState(0);
 
   // Refs
-  const gameLoopRef = useRef();
-  const lastTimeRef = useRef(null);
-  const towerAttackTimers = useRef({});
   const enemyIdCounter = useRef(0);
   const colorPickerRef = useRef(null);
   const scoreSubmittedRef = useRef(false);
@@ -170,139 +167,14 @@ const TowerDefense = () => {
   const startNewGame = () => {
     resetGameFull();
     setGameState('preparation');
-    scoreSubmittedRef.current = false; // Réinitialiser le flag pour permettre la soumission de la prochaine partie
+    scoreSubmittedRef.current = false;
   };
 
-  // Game loop
-  useEffect(() => {
-    if (gameState !== 'wave') {
-      lastTimeRef.current = null;
-      return;
-    }
-
-    const gameLoop = () => {
-      const now = Date.now();
-      if (lastTimeRef.current === null) {
-        lastTimeRef.current = now;
-        gameLoopRef.current = requestAnimationFrame(gameLoop);
-        return;
-      }
-
-      const deltaTime = (now - lastTimeRef.current) / 1000;
-      lastTimeRef.current = now;
-      const adjustedDeltaTime = deltaTime * gameSpeed;
-
-      // Update enemies
-      setEnemies(prev => {
-        return prev.map(enemy => {
-          if (enemy.health <= 0 || !currentPath) return null;
-
-          let newPathIndex = enemy.pathIndex;
-          if (enemy.effects.stun > 0) {
-            enemy.effects.stun -= adjustedDeltaTime;
-          } else {
-            let movement = enemy.speed * adjustedDeltaTime;
-            if (enemy.effects.slow > 0) {
-              movement = (enemy.speed * 0.5) * adjustedDeltaTime;
-              enemy.effects.slow -= adjustedDeltaTime;
-            }
-            newPathIndex = enemy.pathIndex + movement;
-          }
-
-          if (enemy.effects.poison > 0) {
-            enemy.health -= 3 * adjustedDeltaTime;
-            enemy.effects.poison -= adjustedDeltaTime;
-          }
-
-          if (newPathIndex >= currentPath.length) {
-            setLives(l => Math.max(0, l - 1));
-            return null;
-          }
-
-          return { ...enemy, pathIndex: newPathIndex };
-        }).filter(Boolean);
-      });
-
-      // Update projectiles
-      setProjectiles(prev => {
-        const damageToApply = [];
-        const updatedProjectiles = prev.map(proj => {
-          const targetEnemy = enemies.find(e => e.id === proj.targetId);
-          if (!targetEnemy) return null;
-
-          const enemyPos = getEnemyPosition(targetEnemy, currentPath);
-          if (!enemyPos) return null;
-
-          const dx = enemyPos.x - proj.x;
-          const dy = enemyPos.y - proj.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 15) {
-            damageToApply.push({
-              enemyId: proj.targetId, damage: proj.damage,
-              effect: proj.effect, towerType: proj.towerType
-            });
-            return null;
-          }
-
-          const speed = 250;
-          const moveX = (dx / dist) * speed * adjustedDeltaTime;
-          const moveY = (dy / dist) * speed * adjustedDeltaTime;
-          return { ...proj, x: proj.x + moveX, y: proj.y + moveY };
-        }).filter(Boolean);
-
-        if (damageToApply.length > 0) {
-          setEnemies(currentEnemies => {
-            return currentEnemies.map(e => {
-              const damage = damageToApply.find(d => d.enemyId === e.id);
-              if (damage) {
-                const isResistant = e.resistances && e.resistances.includes(damage.towerType);
-                const actualDamage = isResistant ? damage.damage * 0.5 : damage.damage;
-                const newHealth = e.health - actualDamage;
-
-                const effects = damage.effect.split(',');
-                effects.forEach(eff => {
-                  if (eff === 'slow') e.effects.slow = 2;
-                  else if (eff === 'poison') e.effects.poison = 3;
-                  else if (eff === 'stun') e.effects.stun = 1;
-                });
-
-                if (newHealth <= 0) {
-                  setScore(s => s + e.reward * 10);
-                  return null;
-                }
-                return { ...e, health: newHealth };
-              }
-              return e;
-            }).filter(Boolean);
-          });
-        }
-
-        return updatedProjectiles;
-      });
-
-      // Tower firing
-      [...towers, ...tempTowers].forEach(tower => {
-        if (tower.damage === 0) return;
-        const timerId = `${tower.id}`;
-        if (!towerAttackTimers.current[timerId]) towerAttackTimers.current[timerId] = 0;
-        towerAttackTimers.current[timerId] += adjustedDeltaTime * 1000;
-
-        if (towerAttackTimers.current[timerId] >= tower.speed) {
-          towerAttackTimers.current[timerId] = 0;
-          const closestEnemy = findTowerTarget(tower, enemies, currentPath);
-          if (closestEnemy) {
-            setProjectiles(prev => [...prev, createProjectile(tower, closestEnemy)]);
-          }
-        }
-      });
-
-      gameLoopRef.current = requestAnimationFrame(gameLoop);
-    };
-
-    gameLoopRef.current = requestAnimationFrame(gameLoop);
-    return () => { if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current); };
-  }, [gameState, towers, tempTowers, enemies, currentPath, gameSpeed]);
+  // Game loop (extracted to useGameLoop hook)
+  useGameLoop({
+    gameState, gameSpeed, towers, tempTowers, enemies, currentPath,
+    setEnemies, setProjectiles, setLives, setScore
+  });
 
   // Wave completion
   useEffect(() => {
@@ -332,6 +204,26 @@ const TowerDefense = () => {
       }
     }
   }, [lives, score, wave, pseudo, saveScore, gameState]);
+
+  // Canvas handlers (extracted to hooks)
+  const { handleCanvasClick } = useCanvasHandlers({
+    canvasRef, getZoom, camera, gameState, contextMenu, adminPage, pseudo, gemTypes, editingGem, fusionRecipes,
+    lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower, selectedTowerToDelete, towers,
+    enemies, editingRecipe, setContextMenu, setAdminPage, updatePseudo, setEditingGem, setGemTypes, setAdminMessage,
+    setFusionRecipes, setTempTowers, setPlacementCount, setSelectedTempTower, setTowers, setSelectedTowerToDelete,
+    setColorPickerPosition, setShowColorPicker, setShowEffectSelector, setShowEmojiSelector, setFieldInputPosition,
+    setFieldInputValue, setEditingField, colorPickerRef, setShowRecipeEditor, setEditingRecipe, setGameState,
+    checkFusionPossible, performFusion, startWave, startNewGame, goToMenuFull, setGameSpeed, zoomIn, zoomOut,
+    resetCamera, deleteTower, resetGameFull, placeTower
+  });
+
+  const { handleCanvasMouseMove, handleMouseDown, handleMouseUp } = useMouseHandlers({
+    canvasRef, getZoom, camera, isDragging, dragStart, gameState, contextMenu, adminPage, pseudo, gemTypes,
+    editingGem, fusionRecipes, lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower,
+    selectedTowerToDelete, towers, enemies, setMousePos, setCamera, clampCamera, setHoveredButton,
+    setHoveredMenuButton, setHoveredCell, setHoveredTower, setIsDragging, setDragStart, checkFusionPossible,
+    goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera, deleteTower, startWave, resetGameFull
+  });
 
   // Rendering
   useEffect(() => {
@@ -414,489 +306,6 @@ const TowerDefense = () => {
     logoImage, grassImage, portailImage, arriveeImage, checkpointImages,
     pseudo, bestScore, lastScore, leaderboard, getZoom, checkFusionPossible
   ]);
-
-  // Click handler
-  const handleCanvasClick = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const zoom = getZoom();
-
-    // Context menu click
-    if (contextMenu) {
-      const cmButtons = getContextMenuButtons(contextMenu, checkFusionPossible);
-      for (const btn of cmButtons) {
-        if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
-          if (btn.action === 'fusion' && btn.fusionInfo) {
-            performFusion(contextMenu.tower, btn.fusionInfo);
-            setContextMenu(null);
-            setSelectedTowerToDelete(null);
-            setSelectedTempTower(null);
-            return;
-          } else if (btn.action === 'start') {
-            startWave();
-          } else if (btn.action === 'delete') {
-            if (contextMenu.isTemp) {
-              setTempTowers(prev => prev.filter(t => t.id !== contextMenu.tower.id));
-              setPlacementCount(prev => Math.max(0, prev - 1));
-              setSelectedTempTower(null);
-            } else {
-              setTowers(prev => prev.filter(t => t.id !== contextMenu.tower.id));
-              setSelectedTowerToDelete(null);
-            }
-          }
-          setContextMenu(null);
-          return;
-        }
-      }
-
-      // Clic en dehors du menu - vérifier si on clique sur une autre tourelle
-      if (gameState === 'preparation') {
-        const worldX = (x - camera.x) / zoom;
-        const worldY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
-        const gridX = Math.floor(worldX / GRID_SIZE);
-        const gridY = Math.floor(worldY / GRID_SIZE);
-
-        const clickedTower = towers.find(t => t.gridX === gridX && t.gridY === gridY);
-        const clickedTempTower = tempTowers.find(t => t.gridX === gridX && t.gridY === gridY);
-
-        if (clickedTower && clickedTower.id !== contextMenu.tower?.id) {
-          setSelectedTowerToDelete(clickedTower.id);
-          setSelectedTempTower(null);
-          setContextMenu({ tower: clickedTower, x, y, isTemp: false });
-          return;
-        }
-
-        if (clickedTempTower && clickedTempTower.id !== contextMenu.tower?.id) {
-          setSelectedTempTower(clickedTempTower.id);
-          setSelectedTowerToDelete(null);
-          setContextMenu({ tower: clickedTempTower, x, y, isTemp: true });
-          return;
-        }
-      }
-
-      setContextMenu(null);
-      setSelectedTowerToDelete(null);
-      setSelectedTempTower(null);
-      return;
-    }
-
-    // Menu clicks
-    if (gameState === 'menu' && !adminPage) {
-      const centerX = CANVAS_WIDTH / 2;
-      const centerY = CANVAS_HEIGHT / 2;
-      const menuButtons = getMenuButtons(centerX, centerY, pseudo);
-      for (const btn of menuButtons) {
-        if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
-          if (btn.id === 'new-game') startNewGame();
-          else if (btn.id === 'pseudo') {
-            const newPseudo = prompt('Entrez votre pseudo:', pseudo);
-            if (newPseudo) updatePseudo(newPseudo);
-          }
-          else if (btn.id === 'admin') setAdminPage('home');
-          return;
-        }
-      }
-      return;
-    }
-
-    // Admin clicks
-    if (adminPage) {
-      const adminButtons = getAdminButtons(adminPage, gemTypes, editingGem, fusionRecipes);
-      for (const btn of adminButtons) {
-        if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
-          if (btn.action === 'back') {
-            if (adminPage === 'edit-gem') setAdminPage('gems');
-            else if (adminPage === 'recipes') setAdminPage('home');
-            else setAdminPage(null);
-            setEditingGem(null);
-          }
-          else if (btn.action === 'gems') setAdminPage('gems');
-          else if (btn.action === 'recipes') setAdminPage('recipes');
-          else if (btn.action === 'create-gem') {
-            // Créer une nouvelle gemme avec valeurs par défaut
-            setEditingGem({
-              id: '',
-              name: 'Nouvelle Gemme',
-              color: '#888888',
-              damage: 10,
-              speed: 1000,
-              range: 100,
-              effect: 'none',
-              icon: '💎',
-              is_droppable: true,
-              is_base: false
-            });
-            setAdminPage('edit-gem');
-          }
-          else if (btn.action === 'edit-gem') {
-            setEditingGem({ ...gemTypes[btn.gemId], id: btn.gemId });
-            setAdminPage('edit-gem');
-          }
-          else if (btn.action === 'edit-field' && editingGem) {
-            // Champs booléens - toggle direct
-            if (btn.fieldKey === 'is_droppable' || btn.fieldKey === 'is_base') {
-              setEditingGem(prev => ({ ...prev, [btn.fieldKey]: !prev[btn.fieldKey] }));
-              return;
-            }
-
-            // Couleur - ouvrir le color picker
-            if (btn.fieldKey === 'color') {
-              const rect = canvasRef.current.getBoundingClientRect();
-              setColorPickerPosition({ x: btn.x + rect.left, y: btn.y + rect.top });
-              setShowColorPicker(true);
-              setTimeout(() => {
-                if (colorPickerRef.current) {
-                  colorPickerRef.current.click();
-                }
-              }, 0);
-              return;
-            }
-
-            // Effet - ouvrir le sélecteur d'effets
-            if (btn.fieldKey === 'effect') {
-              setShowEffectSelector(prev => !prev);
-              return;
-            }
-
-            // Icône - ouvrir le sélecteur d'emojis
-            if (btn.fieldKey === 'icon') {
-              setShowEmojiSelector(prev => !prev);
-              return;
-            }
-
-            // Champs texte et numériques - ouvrir l'input
-            const rect = canvasRef.current.getBoundingClientRect();
-            setFieldInputPosition({ x: btn.x + rect.left, y: btn.y + rect.top });
-            setFieldInputValue(String(editingGem[btn.fieldKey]));
-            setEditingField(btn.fieldKey);
-          }
-          else if (btn.action === 'delete-gem' && editingGem) {
-            // Supprimer une gemme existante
-            if (confirm(`Supprimer définitivement la gemme "${editingGem.name}" ?`)) {
-              deleteGem(editingGem.id)
-                .then(() => {
-                  // Retirer localement après succès API
-                  setGemTypes(prev => {
-                    const newGems = { ...prev };
-                    delete newGems[editingGem.id];
-                    return newGems;
-                  });
-                  setAdminMessage({ type: 'success', text: `Gemme "${editingGem.name}" supprimée !` });
-                  setTimeout(() => setAdminMessage(null), 3000);
-                  setAdminPage('gems');
-                  setEditingGem(null);
-                })
-                .catch(err => {
-                  setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
-                  setTimeout(() => setAdminMessage(null), 3000);
-                });
-            }
-          }
-          else if (btn.action === 'save' && editingGem) {
-            // Vérifier que l'ID est renseigné
-            if (!editingGem.id || editingGem.id.trim() === '') {
-              setAdminMessage({ type: 'error', text: 'L\'ID est obligatoire !' });
-              setTimeout(() => setAdminMessage(null), 3000);
-              return;
-            }
-
-            const gemData = {
-              id: editingGem.id.toUpperCase().trim(),
-              name: editingGem.name,
-              color: editingGem.color,
-              damage: editingGem.damage,
-              speed: editingGem.speed,
-              range: editingGem.range,
-              effect: editingGem.effect,
-              icon: editingGem.icon,
-              is_droppable: editingGem.is_droppable ?? true,
-              is_base: editingGem.is_base ?? false
-            };
-
-            // Vérifier si c'est une création (pas d'ID dans gemTypes) ou une modification
-            const isNewGem = !gemTypes[editingGem.id];
-            const apiCall = isNewGem ? createGem(gemData) : updateGem(editingGem.id, gemData);
-
-            apiCall
-              .then(() => {
-                // Mettre à jour localement après succès API
-                setGemTypes(prev => ({ ...prev, [gemData.id]: gemData }));
-                setAdminMessage({
-                  type: 'success',
-                  text: `Gemme "${editingGem.name}" ${isNewGem ? 'creee' : 'sauvegardee'} en BDD !`
-                });
-                setTimeout(() => setAdminMessage(null), 3000);
-                setAdminPage('gems');
-                setEditingGem(null);
-              })
-              .catch(err => {
-                setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
-                setTimeout(() => setAdminMessage(null), 3000);
-              });
-          }
-          else if (btn.action === 'add-recipe') {
-            // Ouvrir l'éditeur visuel de recette
-            setEditingRecipe({
-              required_gems: [],
-              result_gem_id: '',
-              min_count: 3
-            });
-            setShowRecipeEditor(true);
-          }
-          else if (btn.action === 'edit-recipe') {
-            // Ouvrir l'éditeur avec les données de la recette existante
-            const recipe = btn.recipe;
-            setEditingRecipe({
-              id: recipe.id,
-              required_gems: recipe.required_gems.split(',').map(g => g.trim()),
-              result_gem_id: recipe.result_gem_id,
-              min_count: recipe.min_count || 3
-            });
-            setShowRecipeEditor(true);
-          }
-          else if (btn.action === 'save-recipe' && editingRecipe) {
-            // Sauvegarder la recette (création ou modification)
-            if (editingRecipe.required_gems.length === 0) {
-              setAdminMessage({ type: 'error', text: 'Sélectionnez au moins un ingrédient !' });
-              setTimeout(() => setAdminMessage(null), 3000);
-              return;
-            }
-            if (!editingRecipe.result_gem_id) {
-              setAdminMessage({ type: 'error', text: 'Sélectionnez une gemme résultat !' });
-              setTimeout(() => setAdminMessage(null), 3000);
-              return;
-            }
-
-            const recipeData = {
-              required_gems: editingRecipe.required_gems.join(','),
-              result_gem_id: editingRecipe.result_gem_id,
-              min_count: editingRecipe.min_count
-            };
-
-            // Vérifier si c'est une création ou une modification
-            const isNewRecipe = !editingRecipe.id;
-            const apiCall = isNewRecipe ? createRecipe(recipeData) : updateRecipe(editingRecipe.id, recipeData);
-
-            apiCall
-              .then(savedRecipe => {
-                if (isNewRecipe) {
-                  setFusionRecipes(prev => [...prev, savedRecipe]);
-                  setAdminMessage({ type: 'success', text: 'Recette ajoutée en BDD !' });
-                } else {
-                  setFusionRecipes(prev => prev.map(r => r.id === editingRecipe.id ? savedRecipe : r));
-                  setAdminMessage({ type: 'success', text: 'Recette modifiée en BDD !' });
-                }
-                setTimeout(() => setAdminMessage(null), 3000);
-                setShowRecipeEditor(false);
-                setEditingRecipe(null);
-              })
-              .catch(err => {
-                setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
-                setTimeout(() => setAdminMessage(null), 3000);
-              });
-          }
-          else if (btn.action === 'toggle-ingredient') {
-            // Toggle un ingrédient dans la recette
-            setEditingRecipe(prev => {
-              const ingredients = [...prev.required_gems];
-              const index = ingredients.indexOf(btn.gemId);
-              if (index >= 0) {
-                ingredients.splice(index, 1);
-              } else {
-                ingredients.push(btn.gemId);
-              }
-              return { ...prev, required_gems: ingredients };
-            });
-          }
-          else if (btn.action === 'select-result') {
-            // Sélectionner la gemme résultat
-            setEditingRecipe(prev => ({ ...prev, result_gem_id: btn.gemId }));
-          }
-          else if (btn.action === 'delete-recipe') {
-            const recipe = fusionRecipes[btn.recipeIndex];
-            if (confirm(`Supprimer la recette ${recipe.required_gems} -> ${recipe.result_gem_id} ?`)) {
-              deleteRecipe(recipe.id)
-                .then(() => {
-                  setFusionRecipes(prev => prev.filter((_, i) => i !== btn.recipeIndex));
-                  setAdminMessage({ type: 'success', text: 'Recette supprimee de la BDD !' });
-                  setTimeout(() => setAdminMessage(null), 3000);
-                })
-                .catch(err => {
-                  setAdminMessage({ type: 'error', text: `Erreur: ${err.message}` });
-                  setTimeout(() => setAdminMessage(null), 3000);
-                });
-            }
-          }
-          return;
-        }
-      }
-      return;
-    }
-
-    // Toolbar clicks
-    if (y <= TOOLBAR_HEIGHT) {
-      const toolbarButtons = getToolbarButtons({
-        gameState, lives, wave, score, placementCount, camera, gameSpeed,
-        tempTowers, selectedTempTower, selectedTowerToDelete, towers, enemies,
-        goToMenu: goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
-        setSelectedTempTower, deleteTower, startWave, resetGame: resetGameFull
-      });
-      for (const btn of toolbarButtons) {
-        if (x >= btn.x && x <= btn.x + btn.width && !btn.disabled && btn.action) {
-          btn.action();
-          return;
-        }
-      }
-      return;
-    }
-
-    // Game world clicks
-    if (gameState === 'preparation') {
-      const worldX = (x - camera.x) / zoom;
-      const worldY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
-      const gridX = Math.floor(worldX / GRID_SIZE);
-      const gridY = Math.floor(worldY / GRID_SIZE);
-
-      // Check tower click (right-click for context menu)
-      const clickedTower = towers.find(t => t.gridX === gridX && t.gridY === gridY);
-      const clickedTempTower = tempTowers.find(t => t.gridX === gridX && t.gridY === gridY);
-
-      if (clickedTower) {
-        setSelectedTowerToDelete(clickedTower.id);
-        setSelectedTempTower(null);
-        setContextMenu({ tower: clickedTower, x, y, isTemp: false });
-        return;
-      }
-
-      if (clickedTempTower) {
-        setSelectedTempTower(clickedTempTower.id);
-        setSelectedTowerToDelete(null);
-        setContextMenu({ tower: clickedTempTower, x, y, isTemp: true });
-        return;
-      }
-
-      // Click on empty cell - deselect and place new tower
-      setSelectedTowerToDelete(null);
-      placeTower(gridX, gridY);
-    }
-  };
-
-  // Mouse move handler
-  const handleCanvasMouseMove = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const zoom = getZoom();
-
-    setMousePos({ x, y });
-
-    // Dragging
-    if (isDragging) {
-      const newX = e.clientX - dragStart.x;
-      const newY = e.clientY - dragStart.y;
-      const clamped = clampCamera(newX, newY, zoom);
-      setCamera(prev => ({ ...prev, ...clamped }));
-      return;
-    }
-
-    // Context menu hover
-    if (contextMenu) {
-      const cmButtons = getContextMenuButtons(contextMenu, checkFusionPossible);
-      let found = null;
-      for (const btn of cmButtons) {
-        if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
-          found = btn.id;
-          break;
-        }
-      }
-      setHoveredButton(found);
-      return;
-    }
-
-    // Menu hover
-    if (gameState === 'menu' && !adminPage) {
-      const centerX = CANVAS_WIDTH / 2;
-      const centerY = CANVAS_HEIGHT / 2;
-      const menuButtons = getMenuButtons(centerX, centerY, pseudo);
-      let found = null;
-      for (const btn of menuButtons) {
-        if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
-          found = btn.id;
-          break;
-        }
-      }
-      setHoveredMenuButton(found);
-      return;
-    }
-
-    // Admin hover
-    if (adminPage) {
-      const adminButtons = getAdminButtons(adminPage, gemTypes, editingGem, fusionRecipes);
-      let found = null;
-      for (const btn of adminButtons) {
-        if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
-          found = btn.id;
-          break;
-        }
-      }
-      setHoveredMenuButton(found);
-      return;
-    }
-
-    // Toolbar hover
-    if (y <= TOOLBAR_HEIGHT) {
-      const toolbarButtons = getToolbarButtons({
-        gameState, lives, wave, score, placementCount, camera, gameSpeed,
-        tempTowers, selectedTempTower, selectedTowerToDelete, towers, enemies,
-        goToMenu: goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
-        setSelectedTempTower, deleteTower, startWave, resetGame: resetGameFull
-      });
-      let found = null;
-      for (const btn of toolbarButtons) {
-        if (x >= btn.x && x <= btn.x + btn.width) {
-          found = btn.id;
-          break;
-        }
-      }
-      setHoveredButton(found);
-      setHoveredTower(null);
-      setHoveredCell(null);
-      return;
-    }
-
-    setHoveredButton(null);
-
-    // Game world hover
-    const worldX = (x - camera.x) / zoom;
-    const worldY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
-    const gridX = Math.floor(worldX / GRID_SIZE);
-    const gridY = Math.floor(worldY / GRID_SIZE);
-
-    if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
-      if (!isInSpawnZone(gridX, gridY) && !isInGoalZone(gridX, gridY) && !isInCheckpointZone(gridX, gridY)) {
-        setHoveredCell({ x: gridX, y: gridY });
-      } else {
-        setHoveredCell(null);
-      }
-
-      const tower = [...towers, ...tempTowers].find(t => t.gridX === gridX && t.gridY === gridY);
-      setHoveredTower(tower ? tower.id : null);
-    } else {
-      setHoveredCell(null);
-      setHoveredTower(null);
-    }
-  };
-
-  // Mouse down/up for dragging
-  const handleMouseDown = (e) => {
-    if (e.button === 1 || e.button === 2) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - camera.x, y: e.clientY - camera.y });
-    }
-  };
-
-  const handleMouseUp = () => setIsDragging(false);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900">
