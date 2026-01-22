@@ -5,7 +5,7 @@ import { FieldInputEditor, EffectSelector, EmojiSelector } from './components/ad
 
 // Config
 import { TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config/constants';
-import { submitScore, fetchLeaderboard } from './services/api';
+import { submitScore, fetchLeaderboard, createRecipe, updateRecipe } from './services/api';
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
 
@@ -563,10 +563,18 @@ const TowerDefense = () => {
                     min_count: editingRecipe.min_count
                   };
 
-                  createRecipe(recipeData)
-                    .then(newRecipe => {
-                      setFusionRecipes(prev => [...prev, newRecipe]);
-                      setAdminMessage({ type: 'success', text: 'Recette ajoutée en BDD !' });
+                  const isNewRecipe = !editingRecipe.id;
+                  const apiCall = isNewRecipe ? createRecipe(recipeData) : updateRecipe(editingRecipe.id, recipeData);
+
+                  apiCall
+                    .then(savedRecipe => {
+                      if (isNewRecipe) {
+                        setFusionRecipes(prev => [...prev, savedRecipe]);
+                        setAdminMessage({ type: 'success', text: 'Recette ajoutée en BDD !' });
+                      } else {
+                        setFusionRecipes(prev => prev.map(r => r.id === editingRecipe.id ? savedRecipe : r));
+                        setAdminMessage({ type: 'success', text: 'Recette modifiée en BDD !' });
+                      }
                       setTimeout(() => setAdminMessage(null), 3000);
                       setShowRecipeEditor(false);
                       setEditingRecipe(null);
