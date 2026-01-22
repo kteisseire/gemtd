@@ -130,18 +130,47 @@ app.post('/api/recipes', (req, res) => {
       return res.status(400).json({ error: 'result_gem_id et required_gems sont requis' });
     }
 
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO fusion_recipes (result_gem_id, required_gems, min_count)
       VALUES (?, ?, ?)
     `).run(result_gem_id, required_gems, min_count || 3);
 
-    res.status(201).json({ message: 'Recette créée avec succès' });
+    // Récupérer la recette créée avec son ID
+    const newRecipe = db.prepare('SELECT * FROM fusion_recipes WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json(newRecipe);
   } catch (error) {
     if (error.code === 'SQLITE_CONSTRAINT') {
       res.status(400).json({ error: 'Contrainte SQL violée (gemme inexistante ou doublon)' });
     } else {
       res.status(500).json({ error: 'Erreur lors de la création de la recette' });
     }
+  }
+});
+
+// PUT - Mettre à jour une recette de fusion
+app.put('/api/recipes/:id', (req, res) => {
+  try {
+    const { result_gem_id, required_gems, min_count } = req.body;
+
+    if (!result_gem_id || !required_gems) {
+      return res.status(400).json({ error: 'result_gem_id et required_gems sont requis' });
+    }
+
+    const result = db.prepare(`
+      UPDATE fusion_recipes
+      SET result_gem_id = ?, required_gems = ?, min_count = ?
+      WHERE id = ?
+    `).run(result_gem_id, required_gems, min_count || 3, req.params.id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Recette non trouvée' });
+    }
+
+    // Récupérer la recette mise à jour
+    const updatedRecipe = db.prepare('SELECT * FROM fusion_recipes WHERE id = ?').get(req.params.id);
+    res.json(updatedRecipe);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la recette' });
   }
 });
 
