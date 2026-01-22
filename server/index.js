@@ -23,6 +23,7 @@ app.get('/api/gems', (req, res) => {
       gemsObject[gem.id] = {
         name: gem.name,
         color: gem.color,
+        image: gem.image || '/images/gemviolette.png',
         damage: gem.damage,
         speed: gem.speed,
         range: gem.range,
@@ -57,13 +58,13 @@ app.get('/api/gems/:id', (req, res) => {
 // PUT - Mettre à jour une gemme (pour l'équilibrage)
 app.put('/api/gems/:id', (req, res) => {
   try {
-    const { name, color, damage, speed, range, effect, icon } = req.body;
+    const { name, color, image, damage, speed, range, effect, icon } = req.body;
 
     const result = db.prepare(`
       UPDATE gems
-      SET name = ?, color = ?, damage = ?, speed = ?, range = ?, effect = ?, icon = ?
+      SET name = ?, color = ?, image = ?, damage = ?, speed = ?, range = ?, effect = ?, icon = ?
       WHERE id = ?
-    `).run(name, color, damage, speed, range, effect, icon, req.params.id);
+    `).run(name, color, image || '/images/gemviolette.png', damage, speed, range, effect, icon, req.params.id);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Gemme non trouvée' });
@@ -78,12 +79,12 @@ app.put('/api/gems/:id', (req, res) => {
 // POST - Créer une nouvelle gemme
 app.post('/api/gems', (req, res) => {
   try {
-    const { id, name, color, damage, speed, range, effect, icon, is_droppable, is_base } = req.body;
+    const { id, name, color, image, damage, speed, range, effect, icon, is_droppable, is_base } = req.body;
 
     db.prepare(`
-      INSERT INTO gems (id, name, color, damage, speed, range, effect, icon, is_droppable, is_base)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, name, color, damage, speed, range, effect, icon, is_droppable || 0, is_base || 0);
+      INSERT INTO gems (id, name, color, image, damage, speed, range, effect, icon, is_droppable, is_base)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, name, color, image || '/images/gemviolette.png', damage, speed, range, effect, icon, is_droppable || 0, is_base || 0);
 
     res.status(201).json({ message: 'Gemme créée avec succès' });
   } catch (error) {

@@ -32,6 +32,10 @@ try {
   db.exec(`ALTER TABLE gems ADD COLUMN is_base INTEGER NOT NULL DEFAULT 0`);
 } catch (e) { /* colonne existe déjà */ }
 
+try {
+  db.exec(`ALTER TABLE gems ADD COLUMN image TEXT NOT NULL DEFAULT '/images/gemviolette.png'`);
+} catch (e) { /* colonne existe déjà */ }
+
 // Créer la table des recettes de fusion
 db.exec(`
   CREATE TABLE IF NOT EXISTS fusion_recipes (
