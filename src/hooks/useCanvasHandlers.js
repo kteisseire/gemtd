@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
-import { CANVAS_WIDTH, CANVAS_HEIGHT, TOOLBAR_HEIGHT, GRID_SIZE } from '../config/constants';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, TOOLBAR_HEIGHT } from '../config/constants';
 import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons } from '../renderers';
 import { createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe } from '../services/api';
+import { isoToGrid } from '../renderers/canvasUtils';
 
 /**
  * Hook personnalisé pour gérer les clics sur le canvas
@@ -60,10 +61,9 @@ export const useCanvasHandlers = (deps) => {
 
       // Clic en dehors du menu - vérifier si on clique sur une autre tourelle
       if (gameState === 'preparation') {
-        const worldX = (x - camera.x) / zoom;
-        const worldY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
-        const gridX = Math.floor(worldX / GRID_SIZE);
-        const gridY = Math.floor(worldY / GRID_SIZE);
+        const isoX = (x - camera.x) / zoom;
+        const isoY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
+        const { gridX, gridY } = isoToGrid(isoX, isoY);
 
         const clickedTower = towers.find(t => t.gridX === gridX && t.gridY === gridY);
         const clickedTempTower = tempTowers.find(t => t.gridX === gridX && t.gridY === gridY);
@@ -316,10 +316,9 @@ export const useCanvasHandlers = (deps) => {
 
     // Game world clicks
     if (gameState === 'preparation') {
-      const worldX = (x - camera.x) / zoom;
-      const worldY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
-      const gridX = Math.floor(worldX / GRID_SIZE);
-      const gridY = Math.floor(worldY / GRID_SIZE);
+      const isoX = (x - camera.x) / zoom;
+      const isoY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
+      const { gridX, gridY } = isoToGrid(isoX, isoY);
 
       const clickedTower = towers.find(t => t.gridX === gridX && t.gridY === gridY);
       const clickedTempTower = tempTowers.find(t => t.gridX === gridX && t.gridY === gridY);

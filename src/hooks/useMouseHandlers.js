@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, TOOLBAR_HEIGHT, GRID_SIZE, COLS, ROWS, isInSpawnZone, isInGoalZone, isInCheckpointZone } from '../config/constants';
 import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons } from '../renderers';
+import { isoToGrid } from '../renderers/canvasUtils';
 
 /**
  * Hook personnalisé pour gérer les événements de souris
@@ -119,11 +120,10 @@ export const useMouseHandlers = (deps) => {
 
     setHoveredButton(null);
 
-    // Game world hover
-    const worldX = (x - camera.x) / zoom;
-    const worldY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
-    const gridX = Math.floor(worldX / GRID_SIZE);
-    const gridY = Math.floor(worldY / GRID_SIZE);
+    // Game world hover - Convertir les coordonnées écran en coordonnées isométriques
+    const isoX = (x - camera.x) / zoom;
+    const isoY = (y - TOOLBAR_HEIGHT - camera.y) / zoom;
+    const { gridX, gridY } = isoToGrid(isoX, isoY);
 
     if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
       if (!isInSpawnZone(gridX, gridY) && !isInGoalZone(gridX, gridY) && !isInCheckpointZone(gridX, gridY)) {

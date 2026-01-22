@@ -1,5 +1,6 @@
 import { GRID_SIZE, ENEMY_EMOJIS, SPAWN_POINT, GOAL_POINT, isInSpawnZone, isInGoalZone, isInCheckpointZone } from '../config/constants';
 import { findPath } from './pathfinding';
+import { gridToIso } from '../renderers/canvasUtils';
 
 // Creer les ennemis d'une nouvelle vague
 export const createWaveEnemies = (wave, gemTypes, previousWaveHealth, enemyIdCounterRef) => {
@@ -56,11 +57,14 @@ export const createTower = (gridX, gridY, gemTypes) => {
   const randomGemType = droppableGems[Math.floor(Math.random() * droppableGems.length)];
   const gemType = gemTypes[randomGemType];
 
+  // Convertir les coordonnées de grille en coordonnées isométriques
+  const { isoX, isoY } = gridToIso(gridX + 0.5, gridY + 0.5);
+
   return {
     id: Date.now() + Math.random(),
     gridX, gridY,
-    x: gridX * GRID_SIZE + GRID_SIZE / 2,
-    y: gridY * GRID_SIZE + GRID_SIZE / 2,
+    x: isoX,
+    y: isoY,
     type: randomGemType,
     level: 1,
     isTemporary: true,

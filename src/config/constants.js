@@ -3,8 +3,18 @@ export const GRID_SIZE = 40;
 export const COLS = 38;
 export const ROWS = 30;
 export const TOOLBAR_HEIGHT = 50;
-export const CANVAS_WIDTH = COLS * GRID_SIZE;
-export const CANVAS_HEIGHT = ROWS * GRID_SIZE + TOOLBAR_HEIGHT;
+// Dimensions du canvas en ratio 16:10 pour un affichage optimal
+export const CANVAS_WIDTH = 1600;
+export const CANVAS_HEIGHT = 1000;
+
+// Configuration isométrique
+export const ISO_TILE_WIDTH = 60;  // Largeur d'une tuile iso
+export const ISO_TILE_HEIGHT = 30; // Hauteur d'une tuile iso
+export const ISO_TILE_DEPTH = 20;  // Profondeur visuelle (effet 3D)
+
+// Décalage de la grille isométrique (pour positionner la grille dans le canvas)
+export const ISO_OFFSET_X = 150;   // Décalage horizontal
+export const ISO_OFFSET_Y = -50;   // Décalage vertical
 
 // Point de spawn et objectif (spawn: 4x4, goal: 4x4)
 export const SPAWN_POINT = { x: 0, y: 14 };
@@ -34,14 +44,16 @@ export const DEFAULT_GEM_TYPES = {
   BLACK: { name: 'Ombre', color: '#1f2937', damage: 16, speed: 1100, range: 120, effect: 'chain', icon: '🌑', is_droppable: true, is_base: false },
 };
 
-// Niveaux de zoom
+// Niveaux de zoom fixes (1 = taille normale)
 export const ZOOM_LEVELS = [
-  Math.min(CANVAS_WIDTH / (COLS * GRID_SIZE), (CANVAS_HEIGHT - TOOLBAR_HEIGHT) / (ROWS * GRID_SIZE)),
-  1600 / (30 * GRID_SIZE),
-  1600 / (24 * GRID_SIZE),
-  1600 / (18 * GRID_SIZE),
-  1600 / (12 * GRID_SIZE),
-  1600 / (6 * GRID_SIZE),
+  0.6,   // Zoom -40% (par défaut)
+  0.75,  // Zoom -25%
+  1.0,   // Zoom normal
+  1.25,  // Zoom +25%
+  1.5,   // Zoom +50%
+  1.75,  // Zoom +75%
+  2.0,   // Zoom +100%
+  2.5,   // Zoom +150%
 ];
 
 // Options de vitesse

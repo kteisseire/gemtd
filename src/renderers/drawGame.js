@@ -1,5 +1,6 @@
-import { GRID_SIZE, SPAWN_POINT, GOAL_POINT, CHECKPOINTS } from '../config/constants';
+import { GRID_SIZE, SPAWN_POINT, GOAL_POINT, CHECKPOINTS, ISO_TILE_WIDTH } from '../config/constants';
 import { getEnemyPosition } from '../services/combatSystem';
+import { gridToIso, drawIsoTile3D, drawIsoTile } from './canvasUtils';
 
 // Dessiner le chemin
 export const drawPath = (ctx, currentPath, zoom) => {
@@ -9,10 +10,9 @@ export const drawPath = (ctx, currentPath, zoom) => {
   ctx.lineJoin = 'round';
   ctx.beginPath();
   currentPath.forEach((point, i) => {
-    const x = point.x * GRID_SIZE + GRID_SIZE / 2;
-    const y = point.y * GRID_SIZE + GRID_SIZE / 2;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    const { isoX, isoY } = gridToIso(point.x + 0.5, point.y + 0.5);
+    if (i === 0) ctx.moveTo(isoX, isoY);
+    else ctx.lineTo(isoX, isoY);
   });
   ctx.strokeStyle = '#8b7355';
   ctx.lineWidth = (GRID_SIZE * 0.5) / zoom;
@@ -21,9 +21,15 @@ export const drawPath = (ctx, currentPath, zoom) => {
 
 // Dessiner le portail (spawn)
 export const drawSpawnPortal = (ctx, portailImage, zoom) => {
-  const portalSize = GRID_SIZE * 4;
-  const portalX = SPAWN_POINT.x * GRID_SIZE;
-  const portalY = SPAWN_POINT.y * GRID_SIZE;
+  // Dessiner les 4x4 tuiles du portail en isométrique (2D plat pour éviter confusion)
+  for (let dy = 0; dy < 4; dy++) {
+    for (let dx = 0; dx < 4; dx++) {
+      drawIsoTile(ctx, SPAWN_POINT.x + dx, SPAWN_POINT.y + dy, '#1a0a0a', 1);
+    }
+  }
+
+  // Position centrale du portail en coordonnées isométriques (centre d'une zone 4x4)
+  const { isoX: spawnCenterX, isoY: spawnCenterY } = gridToIso(SPAWN_POINT.x + 0.5, SPAWN_POINT.y + 0.5);
 
   ctx.shadowColor = 'rgba(139, 0, 0, 0.8)';
   ctx.shadowBlur = 40;
@@ -31,25 +37,17 @@ export const drawSpawnPortal = (ctx, portailImage, zoom) => {
   ctx.shadowOffsetY = 0;
 
   if (portailImage) {
-    ctx.drawImage(portailImage, portalX, portalY, portalSize, portalSize);
+    const portalSize = ISO_TILE_WIDTH * 4;
+    ctx.drawImage(portailImage, spawnCenterX - portalSize / 2, spawnCenterY - portalSize / 2, portalSize, portalSize);
   } else {
-    const spawnCenterX = (SPAWN_POINT.x + 2) * GRID_SIZE;
-    const spawnCenterY = (SPAWN_POINT.y + 2) * GRID_SIZE;
-
-    ctx.fillStyle = '#1a0a0a';
-    ctx.fillRect(portalX, portalY, portalSize, portalSize);
-
-    ctx.fillStyle = 'rgba(139, 0, 0, 0.4)';
+    // Cercle rouge au centre
+    ctx.fillStyle = 'rgba(139, 0, 0, 0.6)';
     ctx.beginPath();
-    ctx.arc(spawnCenterX, spawnCenterY, portalSize / 2.5, 0, Math.PI * 2);
+    ctx.arc(spawnCenterX, spawnCenterY, 50, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = '#8b0000';
-    ctx.lineWidth = 4 / zoom;
-    ctx.strokeRect(portalX, portalY, portalSize, portalSize);
-
     ctx.fillStyle = '#ff0000';
-    ctx.font = `bold ${Math.max(32, 48 / zoom)}px Arial`;
+    ctx.font = `bold ${Math.max(40, 60 / zoom)}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('👹', spawnCenterX, spawnCenterY);
@@ -61,9 +59,15 @@ export const drawSpawnPortal = (ctx, portailImage, zoom) => {
 
 // Dessiner l'arrivee (goal)
 export const drawGoal = (ctx, arriveeImage, zoom) => {
-  const goalSize = GRID_SIZE * 4;
-  const goalX = GOAL_POINT.x * GRID_SIZE;
-  const goalY = GOAL_POINT.y * GRID_SIZE;
+  // Dessiner les 4x4 tuiles du goal en isométrique (2D plat pour éviter confusion)
+  for (let dy = 0; dy < 4; dy++) {
+    for (let dx = 0; dx < 4; dx++) {
+      drawIsoTile(ctx, GOAL_POINT.x + dx, GOAL_POINT.y + dy, '#6b8e23', 1);
+    }
+  }
+
+  // Position centrale du goal en coordonnées isométriques (centre d'une zone 4x4)
+  const { isoX: houseCenterX, isoY: houseCenterY } = gridToIso(GOAL_POINT.x + 0.5, GOAL_POINT.y + 0.5);
 
   ctx.shadowColor = 'rgba(107, 142, 35, 0.8)';
   ctx.shadowBlur = 35;
@@ -71,39 +75,31 @@ export const drawGoal = (ctx, arriveeImage, zoom) => {
   ctx.shadowOffsetY = 0;
 
   if (arriveeImage) {
-    ctx.drawImage(arriveeImage, goalX, goalY, goalSize, goalSize);
+    const goalSize = ISO_TILE_WIDTH * 4;
+    ctx.drawImage(arriveeImage, houseCenterX - goalSize / 2, houseCenterY - goalSize / 2, goalSize, goalSize);
   } else {
-    const houseCenterX = (GOAL_POINT.x + 2) * GRID_SIZE;
-    const houseCenterY = (GOAL_POINT.y + 2) * GRID_SIZE;
+    // Dessiner une maison simple en isométrique
+    const houseWidth = 70;
+    const houseHeight = 50;
 
+    // Corps de la maison
     ctx.fillStyle = '#d4a574';
-    ctx.fillRect(houseCenterX - goalSize / 3, houseCenterY - 5, goalSize / 1.5, goalSize / 2.5);
+    ctx.fillRect(houseCenterX - houseWidth / 2, houseCenterY - houseHeight / 2, houseWidth, houseHeight);
 
+    // Toit
     ctx.fillStyle = '#8b4513';
     ctx.beginPath();
-    ctx.moveTo(houseCenterX, houseCenterY - goalSize / 2.5);
-    ctx.lineTo(houseCenterX - goalSize / 2.3, houseCenterY - 5);
-    ctx.lineTo(houseCenterX + goalSize / 2.3, houseCenterY - 5);
+    ctx.moveTo(houseCenterX, houseCenterY - houseHeight);
+    ctx.lineTo(houseCenterX - houseWidth / 2 - 15, houseCenterY - houseHeight / 2);
+    ctx.lineTo(houseCenterX + houseWidth / 2 + 15, houseCenterY - houseHeight / 2);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#8b7355';
-    ctx.fillRect(houseCenterX + goalSize / 6, houseCenterY - goalSize / 2, 8, 18);
-
-    ctx.fillStyle = '#654321';
-    ctx.fillRect(houseCenterX - 10, houseCenterY + 5, 20, 28);
-
     ctx.fillStyle = '#228b22';
-    ctx.font = `bold ${Math.max(24, 32 / zoom)}px Arial`;
+    ctx.font = `bold ${Math.max(32, 40 / zoom)}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🏡', houseCenterX, houseCenterY + goalSize / 2.8);
-
-    ctx.strokeStyle = '#6b8e23';
-    ctx.lineWidth = 3 / zoom;
-    ctx.setLineDash([8 / zoom, 4 / zoom]);
-    ctx.strokeRect(goalX, goalY, goalSize, goalSize);
-    ctx.setLineDash([]);
+    ctx.fillText('🏡', houseCenterX, houseCenterY);
   }
 
   ctx.shadowColor = 'transparent';
@@ -121,12 +117,19 @@ export const drawCheckpoints = (ctx, checkpointImages, zoom) => {
   ];
 
   const emojis = ['⚔️', '🔨', '🐴', '💧', '📖'];
+  const colors = ['#4a5568', '#7c2d12', '#854d0e', '#1e3a5f', '#1e1b4b'];
 
   CHECKPOINTS.forEach((checkpoint, index) => {
-    const checkpointSize = GRID_SIZE * 2;
-    const checkpointX = checkpoint.x * GRID_SIZE;
-    const checkpointY = checkpoint.y * GRID_SIZE;
+    // Dessiner les 2x2 tuiles du checkpoint en isométrique (2D plat pour éviter confusion)
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) {
+        drawIsoTile(ctx, checkpoint.x + dx, checkpoint.y + dy, colors[index], 1);
+      }
+    }
+
     const checkpointImage = checkpointImages[checkpoint.name];
+    // Centre d'une zone 2x2
+    const { isoX: cx, isoY: cy } = gridToIso(checkpoint.x + 0.5, checkpoint.y + 0.5);
 
     ctx.shadowColor = haloColors[index];
     ctx.shadowBlur = 30;
@@ -134,23 +137,13 @@ export const drawCheckpoints = (ctx, checkpointImages, zoom) => {
     ctx.shadowOffsetY = 0;
 
     if (checkpointImage) {
-      ctx.drawImage(checkpointImage, checkpointX, checkpointY, checkpointSize, checkpointSize);
+      const checkpointSize = ISO_TILE_WIDTH * 1.8;
+      ctx.drawImage(checkpointImage, cx - checkpointSize / 2, cy - checkpointSize / 2, checkpointSize, checkpointSize);
     } else {
-      const cx = (checkpoint.x + 1) * GRID_SIZE;
-      const cy = (checkpoint.y + 1) * GRID_SIZE;
-
-      const colors = ['#4a5568', '#7c2d12', '#854d0e', '#1e3a5f', '#1e1b4b'];
-      ctx.fillStyle = colors[index];
-      ctx.fillRect(checkpointX, checkpointY, checkpointSize, checkpointSize);
-
-      ctx.font = `${Math.max(28, 36 / zoom)}px Arial`;
+      ctx.font = `${Math.max(36, 44 / zoom)}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(emojis[index], cx, cy);
-
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 3 / zoom;
-      ctx.strokeRect(checkpointX, checkpointY, checkpointSize, checkpointSize);
     }
 
     ctx.shadowColor = 'transparent';
@@ -164,17 +157,20 @@ export const drawTowers = (ctx, towers, deps) => {
   const fusionPulse = Math.sin(Date.now() / 600) * 0.5 + 0.5;
 
   towers.forEach(tower => {
+    // Convertir la position de la tour en isométrique
+    const { isoX, isoY } = gridToIso(tower.gridX + 0.5, tower.gridY + 0.5);
+
     if (gameState === 'preparation' && checkFusionPossible && checkFusionPossible(tower)) {
       ctx.globalAlpha = 0.5 + fusionPulse * 0.3;
       ctx.strokeStyle = '#a855f7';
       ctx.lineWidth = (3 + fusionPulse * 2) / zoom;
       ctx.beginPath();
-      ctx.arc(tower.x, tower.y, 24 + fusionPulse * 4, 0, Math.PI * 2);
+      ctx.arc(isoX, isoY, 24 + fusionPulse * 4, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.globalAlpha = 0.3 + fusionPulse * 0.2;
       ctx.fillStyle = '#c084fc';
-      ctx.fillRect(tower.x - 14, tower.y - 14, 28, 28);
+      ctx.fillRect(isoX - 14, isoY - 14, 28, 28);
       ctx.globalAlpha = 1;
     }
 
@@ -182,7 +178,7 @@ export const drawTowers = (ctx, towers, deps) => {
       ctx.globalAlpha = 0.15;
       ctx.fillStyle = tower.color;
       ctx.beginPath();
-      ctx.arc(tower.x, tower.y, tower.range, 0, Math.PI * 2);
+      ctx.arc(isoX, isoY, tower.range, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -193,18 +189,18 @@ export const drawTowers = (ctx, towers, deps) => {
       ctx.strokeStyle = hasFusion ? '#06b6d4' : '#ef4444';
       ctx.lineWidth = 4 / zoom;
       ctx.beginPath();
-      ctx.arc(tower.x, tower.y, 20, 0, Math.PI * 2);
+      ctx.arc(isoX, isoY, 20, 0, Math.PI * 2);
       ctx.stroke();
     }
 
     ctx.fillStyle = tower.color;
     ctx.beginPath();
-    ctx.arc(tower.x, tower.y, 16, 0, Math.PI * 2);
+    ctx.arc(isoX, isoY, 16, 0, Math.PI * 2);
     ctx.fill();
     ctx.font = `${Math.max(14, 16 / zoom)}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(tower.icon, tower.x, tower.y);
+    ctx.fillText(tower.icon, isoX, isoY);
   });
 };
 
@@ -213,11 +209,14 @@ export const drawTempTowers = (ctx, tempTowers, deps) => {
   const { hoveredTower, selectedTempTower, zoom } = deps;
 
   tempTowers.forEach(tower => {
+    // Convertir la position de la tour en isométrique
+    const { isoX, isoY } = gridToIso(tower.gridX + 0.5, tower.gridY + 0.5);
+
     if (hoveredTower === tower.id && tower.type !== 'BASE') {
       ctx.globalAlpha = 0.15;
       ctx.fillStyle = tower.color;
       ctx.beginPath();
-      ctx.arc(tower.x, tower.y, tower.range, 0, Math.PI * 2);
+      ctx.arc(isoX, isoY, tower.range, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -226,19 +225,19 @@ export const drawTempTowers = (ctx, tempTowers, deps) => {
       ctx.strokeStyle = '#22c55e';
       ctx.lineWidth = 4 / zoom;
       ctx.beginPath();
-      ctx.arc(tower.x, tower.y, 20, 0, Math.PI * 2);
+      ctx.arc(isoX, isoY, 20, 0, Math.PI * 2);
       ctx.stroke();
     }
 
     ctx.globalAlpha = 0.8;
     ctx.fillStyle = tower.color;
     ctx.beginPath();
-    ctx.arc(tower.x, tower.y, 16, 0, Math.PI * 2);
+    ctx.arc(isoX, isoY, 16, 0, Math.PI * 2);
     ctx.fill();
     ctx.font = `${Math.max(14, 16 / zoom)}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(tower.icon, tower.x, tower.y);
+    ctx.fillText(tower.icon, isoX, isoY);
     ctx.globalAlpha = 1;
   });
 };
@@ -286,8 +285,6 @@ export const drawPlacementPreview = (ctx, hoveredCell, deps) => {
   );
   if (existingTower) return;
 
-  ctx.globalAlpha = 0.3;
-  ctx.fillStyle = '#22c55e';
-  ctx.fillRect(hoveredCell.x * GRID_SIZE, hoveredCell.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
-  ctx.globalAlpha = 1;
+  // Dessiner la tuile de preview en isométrique avec transparence
+  drawIsoTile3D(ctx, hoveredCell.x, hoveredCell.y, '#22c55e', 0.3);
 };

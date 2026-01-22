@@ -1,6 +1,6 @@
 // Export tous les renderers
 export { drawStyledButton } from './drawButton';
-export { createGrassCache, drawGrassBackground, clearCanvas, applyCameraTransform, restoreCameraTransform } from './canvasUtils';
+export { createGrassCache, drawGrassBackground, clearCanvas, applyCameraTransform, restoreCameraTransform, drawIsoGrid } from './canvasUtils';
 export { getToolbarButtons, drawToolbar } from './drawToolbar';
 export { getMenuButtons, drawMainMenu } from './drawMenu';
 export { drawAdminPage, getAdminButtons } from './drawAdmin';

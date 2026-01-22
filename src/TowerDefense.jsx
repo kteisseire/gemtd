@@ -6,8 +6,10 @@ import { FieldInputEditor, EffectSelector, EmojiSelector, RecipeEditor } from '.
 // Config
 import { TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config/constants';
 import { submitScore, fetchLeaderboard, createRecipe, updateRecipe } from './services/api';
+
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
+import { gridToIso } from './renderers/canvasUtils';
 
 // Hooks
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -25,9 +27,9 @@ import { useCanvasHandlers } from './hooks/useCanvasHandlers';
 import { useMouseHandlers } from './hooks/useMouseHandlers';
 import { useFusion } from './hooks/useFusion';
 
+
 // Renderers
-import {
-  clearCanvas, createGrassCache, drawGrassBackground,
+import {  clearCanvas, createGrassCache, drawGrassBackground, drawIsoGrid,
   getToolbarButtons, drawToolbar,
   drawMainMenu,
   drawAdminPage,
@@ -35,6 +37,7 @@ import {
   drawTowers, drawTempTowers, drawEnemies, drawProjectiles, drawPlacementPreview,
   drawErrorOverlay, drawGameOverOverlay, getGameOverButtons, drawTowerTooltip, drawToolbarTooltip,
   drawContextMenu
+
 } from './renderers';
 
 const TowerDefense = () => {
@@ -61,6 +64,7 @@ const TowerDefense = () => {
   const enemyIdCounter = useRef(0);
   const colorPickerRef = useRef(null);
   const scoreSubmittedRef = useRef(false);
+
 
   // Spawn wave
   const spawnWave = useCallback(() => {
@@ -173,6 +177,44 @@ const TowerDefense = () => {
     setEnemies, setProjectiles, setLives, setScore
   });
 
+  // Migration des tours existantes vers les coordonnées isométriques (au montage uniquement)
+  useEffect(() => {
+    // Migrer les tours permanentes
+    setTowers(prevTowers =>
+      prevTowers.map(tower => {
+        // Si la tour a déjà été migrée, ne pas la re-migrer
+        // On peut détecter ça en vérifiant si x/y correspondent déjà aux coordonnées iso
+        const { isoX, isoY } = gridToIso(tower.gridX + 0.5, tower.gridY + 0.5);
+
+        // Si les coordonnées correspondent déjà (avec une marge d'erreur de 1 pixel), pas besoin de migrer
+        if (Math.abs(tower.x - isoX) < 1 && Math.abs(tower.y - isoY) < 1) {
+          return tower;
+        }
+
+        return { ...tower, x: isoX, y: isoY };
+      })
+    );
+
+    // Migrer les tours temporaires
+    setTempTowers(prevTempTowers =>
+      prevTempTowers.map(tower => {
+        const { isoX, isoY } = gridToIso(tower.gridX + 0.5, tower.gridY + 0.5);
+
+        if (Math.abs(tower.x - isoX) < 1 && Math.abs(tower.y - isoY) < 1) {
+          return tower;
+        }
+
+        return { ...tower, x: isoX, y: isoY };
+      })
+    );
+  }, []); // Exécuté une seule fois au montage
+
+  // Invalider le cache de l'herbe pour forcer la régénération (au montage uniquement)
+  useEffect(() => {
+    grassCanvasRef.current = null;
+  }, []);
+
+
   // Wave completion
   useEffect(() => {
     if (gameState === 'wave' && enemies.length === 0) {
@@ -201,7 +243,6 @@ const TowerDefense = () => {
       }
     }
   }, [lives, score, wave, pseudo, saveScore, gameState]);
-
   // Canvas handlers (extracted to hooks)
   const { handleCanvasClick } = useCanvasHandlers({
     canvasRef, getZoom, camera, gameState, contextMenu, adminPage, pseudo, gemTypes, editingGem, fusionRecipes,
@@ -222,6 +263,7 @@ const TowerDefense = () => {
     goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera, deleteTower, startWave, resetGameFull
   });
 
+
   // Rendering
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -232,24 +274,6 @@ const TowerDefense = () => {
     const isMenuOrAdmin = gameState === 'menu' || adminPage;
 
     clearCanvas(ctx);
-
-    // Grass background
-    if (!isMenuOrAdmin) {
-      createGrassCache(grassImage, grassCanvasRef);
-      drawGrassBackground(ctx, camera, zoom, grassCanvasRef);
-    }
-
-    // Toolbar
-    const toolbarButtons = getToolbarButtons({
-      gameState, lives, wave, score, placementCount, camera, gameSpeed,
-      tempTowers, selectedTempTower, selectedTowerToDelete, towers, enemies,
-      goToMenu: goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
-      setSelectedTempTower, deleteTower, startWave, resetGame: resetGameFull
-    });
-
-    if (!isMenuOrAdmin) {
-      drawToolbar(ctx, toolbarButtons, hoveredButton);
-    }
 
     // Menu
     if (gameState === 'menu' && !adminPage) {
@@ -265,10 +289,36 @@ const TowerDefense = () => {
       return;
     }
 
-    // Game world
+    // Toolbar (sans transformation)
+    const toolbarButtons = getToolbarButtons({
+      gameState, lives, wave, score, placementCount, camera, gameSpeed,
+      tempTowers, selectedTempTower, selectedTowerToDelete, towers, enemies,
+      goToMenu: goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera,
+      setSelectedTempTower, deleteTower, startWave, resetGame: resetGameFull
+    });
+
+    if (!isMenuOrAdmin) {
+      drawToolbar(ctx, toolbarButtons, hoveredButton);
+    }
+
+    // Game world (avec zoom et transformation de caméra)
     ctx.save();
+
+    // Définir une zone de clipping pour ne pas déborder sur la toolbar
+    ctx.beginPath();
+    ctx.rect(0, TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT - TOOLBAR_HEIGHT);
+    ctx.clip();
+
     ctx.translate(camera.x, camera.y + TOOLBAR_HEIGHT);
     ctx.scale(zoom, zoom);
+
+    // Grass background (AVEC transformation pour suivre le jeu)
+    createGrassCache(grassImage, grassCanvasRef);
+    drawGrassBackground(ctx, grassCanvasRef);
+
+    // Dessiner la grille isométrique
+    drawIsoGrid(ctx);
+
 
     drawPath(ctx, currentPath, zoom);
     drawSpawnPortal(ctx, portailImage, zoom);
@@ -286,6 +336,7 @@ const TowerDefense = () => {
     // Overlays
     if (errorMessage) drawErrorOverlay(ctx, errorMessage);
     if (gameState === 'gameOver') drawGameOverOverlay(ctx, score, wave, hoveredButton);
+
     if (hoveredTower && !contextMenu) {
       drawTowerTooltip(ctx, { hoveredTower, towers, tempTowers, mousePos, gemTypes, fusionRecipes });
     }
@@ -344,8 +395,7 @@ const TowerDefense = () => {
           />
         )}
 
-        {/* Field Input Editor */}
-        <FieldInputEditor
+        {/* Field Input Editor */}        <FieldInputEditor
           editingField={editingField}
           fieldInputValue={fieldInputValue}
           fieldInputPosition={fieldInputPosition}
@@ -360,8 +410,8 @@ const TowerDefense = () => {
           onCancel={() => setEditingField(null)}
         />
 
-        {/* Effect Selector - Multi-sélection */}
-        <EffectSelector
+
+        {/* Effect Selector - Multi-sélection */}        <EffectSelector
           editingGem={editingGem}
           showEffectSelector={showEffectSelector}
           onEffectToggle={handleEffectToggle}
@@ -387,6 +437,7 @@ const TowerDefense = () => {
             setEditingRecipe(null);
           }}
         />
+
 
         {/* Overlay sombre pour les sélecteurs */}
         {(showEffectSelector || showEmojiSelector || showRecipeEditor) && (

@@ -1,6 +1,6 @@
-import { GRID_SIZE } from '../config/constants';
+import { gridToIso } from '../renderers/canvasUtils';
 
-// Calculer la position d'un ennemi sur le chemin
+// Calculer la position d'un ennemi sur le chemin (en coordonnées isométriques)
 export const getEnemyPosition = (enemy, currentPath) => {
   if (!currentPath || enemy.pathIndex < 0 || enemy.pathIndex >= currentPath.length) return null;
   const idx = Math.floor(enemy.pathIndex);
@@ -8,10 +8,14 @@ export const getEnemyPosition = (enemy, currentPath) => {
   const t = enemy.pathIndex - idx;
   const p1 = currentPath[idx];
   const p2 = currentPath[nextIdx];
-  return {
-    x: p1.x * GRID_SIZE + GRID_SIZE / 2 + (p2.x - p1.x) * GRID_SIZE * t,
-    y: p1.y * GRID_SIZE + GRID_SIZE / 2 + (p2.y - p1.y) * GRID_SIZE * t
-  };
+
+  // Position en coordonnées de grille (avec interpolation)
+  const gridX = p1.x + 0.5 + (p2.x - p1.x) * t;
+  const gridY = p1.y + 0.5 + (p2.y - p1.y) * t;
+
+  // Convertir en coordonnées isométriques
+  const { isoX, isoY } = gridToIso(gridX, gridY);
+  return { x: isoX, y: isoY };
 };
 
 // Mettre a jour le mouvement d'un ennemi
