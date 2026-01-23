@@ -1,6 +1,6 @@
 import { GRID_SIZE, SPAWN_POINT, GOAL_POINT, CHECKPOINTS, ISO_TILE_WIDTH } from '../config/constants';
 import { getEnemyPosition } from '../services/combatSystem';
-import { gridToIso, drawIsoTile3D, drawIsoTile } from './canvasUtils';
+import { gridToIso, drawIsoTile3D, drawIsoTile, drawIsoEllipse } from './canvasUtils';
 
 // Dessiner le chemin
 export const drawPath = (ctx, currentPath, zoom) => {
@@ -177,8 +177,7 @@ export const drawTowers = (ctx, towers, deps) => {
     if (hoveredTower === tower.id && tower.type !== 'BASE') {
       ctx.globalAlpha = 0.15;
       ctx.fillStyle = tower.color;
-      ctx.beginPath();
-      ctx.arc(isoX, isoY, tower.range, 0, Math.PI * 2);
+      drawIsoEllipse(ctx, isoX, isoY, tower.range);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
@@ -223,8 +222,7 @@ export const drawTempTowers = (ctx, tempTowers, deps) => {
     if (hoveredTower === tower.id && tower.type !== 'BASE') {
       ctx.globalAlpha = 0.15;
       ctx.fillStyle = tower.color;
-      ctx.beginPath();
-      ctx.arc(isoX, isoY, tower.range, 0, Math.PI * 2);
+      drawIsoEllipse(ctx, isoX, isoY, tower.range);
       ctx.fill();
       ctx.globalAlpha = 1;
     }

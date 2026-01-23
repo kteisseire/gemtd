@@ -182,6 +182,17 @@ const shadeColor = (color, percent) => {
   return `#${RR}${GG}${BB}`;
 };
 
+// Dessiner une ellipse isométrique (cercle en perspective iso)
+export const drawIsoEllipse = (ctx, isoX, isoY, radius) => {
+  // En perspective isométrique, un cercle devient une ellipse
+  // Le rayon horizontal est compressé par le ratio ISO_TILE_WIDTH/ISO_TILE_HEIGHT
+  const radiusX = radius * 2; // Élargissement horizontal
+  const radiusY = radius; // Hauteur normale
+
+  ctx.beginPath();
+  ctx.ellipse(isoX, isoY, radiusX, radiusY, 0, 0, Math.PI * 2);
+};
+
 // Dessiner la grille isométrique
 export const drawIsoGrid = (ctx) => {
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
