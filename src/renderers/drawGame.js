@@ -4,18 +4,71 @@ import { gridToIso, drawIsoTile3D, drawIsoTile, drawIsoEllipse } from './canvasU
 
 // Dessiner le chemin
 export const drawPath = (ctx, currentPath, zoom) => {
-  if (!currentPath) return;
+  if (!currentPath || currentPath.length === 0) return;
 
+  const pathWidth = (GRID_SIZE * 0.6) / zoom;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+
+  // Ombre portée du chemin
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetX = 3;
+  ctx.shadowOffsetY = 3;
+
   ctx.beginPath();
   currentPath.forEach((point, i) => {
     const { isoX, isoY } = gridToIso(point.x + 0.5, point.y + 0.5);
     if (i === 0) ctx.moveTo(isoX, isoY);
     else ctx.lineTo(isoX, isoY);
   });
-  ctx.strokeStyle = '#8b7355';
-  ctx.lineWidth = (GRID_SIZE * 0.5) / zoom;
+  ctx.strokeStyle = '#6b5647';
+  ctx.lineWidth = pathWidth;
+  ctx.stroke();
+  ctx.restore();
+
+  // Bordure extérieure foncée
+  ctx.beginPath();
+  currentPath.forEach((point, i) => {
+    const { isoX, isoY } = gridToIso(point.x + 0.5, point.y + 0.5);
+    if (i === 0) ctx.moveTo(isoX, isoY);
+    else ctx.lineTo(isoX, isoY);
+  });
+  ctx.strokeStyle = '#4a3a2a';
+  ctx.lineWidth = pathWidth + 4 / zoom;
+  ctx.stroke();
+
+  // Chemin principal avec dégradé
+  const firstPoint = currentPath[0];
+  const lastPoint = currentPath[currentPath.length - 1];
+  const { isoX: x1, isoY: y1 } = gridToIso(firstPoint.x + 0.5, firstPoint.y + 0.5);
+  const { isoX: x2, isoY: y2 } = gridToIso(lastPoint.x + 0.5, lastPoint.y + 0.5);
+
+  const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+  gradient.addColorStop(0, '#9b7d5f');
+  gradient.addColorStop(0.5, '#a8856b');
+  gradient.addColorStop(1, '#8b6f5a');
+
+  ctx.beginPath();
+  currentPath.forEach((point, i) => {
+    const { isoX, isoY } = gridToIso(point.x + 0.5, point.y + 0.5);
+    if (i === 0) ctx.moveTo(isoX, isoY);
+    else ctx.lineTo(isoX, isoY);
+  });
+  ctx.strokeStyle = gradient;
+  ctx.lineWidth = pathWidth;
+  ctx.stroke();
+
+  // Ligne centrale claire pour donner de la profondeur
+  ctx.beginPath();
+  currentPath.forEach((point, i) => {
+    const { isoX, isoY } = gridToIso(point.x + 0.5, point.y + 0.5);
+    if (i === 0) ctx.moveTo(isoX, isoY);
+    else ctx.lineTo(isoX, isoY);
+  });
+  ctx.strokeStyle = 'rgba(200, 180, 160, 0.3)';
+  ctx.lineWidth = pathWidth * 0.3;
   ctx.stroke();
 };
 
