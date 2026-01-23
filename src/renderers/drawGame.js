@@ -195,7 +195,10 @@ export const drawTowers = (ctx, towers, deps) => {
     // Dessiner l'image de la gemme si disponible, sinon fallback sur emoji
     const gemImage = gemImages && gemImages[tower.type];
     if (gemImage) {
-      const gemSize = 48; // Taille de l'image de gemme
+      // Gemmes fusionnées (is_droppable: false et is_base: false) sont 1.4x plus grandes
+      const isFusedGem = !tower.is_droppable && !tower.is_base;
+      const baseSize = 48;
+      const gemSize = isFusedGem ? baseSize * 1.4 : baseSize;
       ctx.drawImage(gemImage, isoX - gemSize / 2, isoY - gemSize / 2, gemSize, gemSize);
     } else {
       // Fallback: dessiner un cercle coloré avec l'emoji
@@ -240,7 +243,10 @@ export const drawTempTowers = (ctx, tempTowers, deps) => {
     // Dessiner l'image de la gemme si disponible, sinon fallback sur emoji
     const gemImage = gemImages && gemImages[tower.type];
     if (gemImage) {
-      const gemSize = 48; // Taille de l'image de gemme
+      // Gemmes fusionnées (is_droppable: false et is_base: false) sont 1.4x plus grandes
+      const isFusedGem = !tower.is_droppable && !tower.is_base;
+      const baseSize = 48;
+      const gemSize = isFusedGem ? baseSize * 1.4 : baseSize;
       ctx.drawImage(gemImage, isoX - gemSize / 2, isoY - gemSize / 2, gemSize, gemSize);
     } else {
       // Fallback: dessiner un cercle coloré avec l'emoji
