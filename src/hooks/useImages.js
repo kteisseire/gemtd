@@ -5,6 +5,7 @@ export const useImages = () => {
   const [grassImage, setGrassImage] = useState(null);
   const [portailImage, setPortailImage] = useState(null);
   const [arriveeImage, setArriveeImage] = useState(null);
+  const [gemholderImage, setGemholderImage] = useState(null);
   const [checkpointImages, setCheckpointImages] = useState({});
   const [gemImages, setGemImages] = useState({});
   const grassCanvasRef = useRef(null);
@@ -42,6 +43,14 @@ export const useImages = () => {
     img.src = '/images/arrivee.png';
     img.onload = () => setArriveeImage(img);
     img.onerror = () => console.error('Erreur lors du chargement de l\'image de l\'arrivee');
+  }, []);
+
+  // Charger l'image du gemholder
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/images/gemholder.png';
+    img.onload = () => setGemholderImage(img);
+    img.onerror = () => console.error('Erreur lors du chargement de l\'image du gemholder');
   }, []);
 
   // Charger les images des checkpoints
@@ -133,6 +142,7 @@ export const useImages = () => {
     grassImage,
     portailImage,
     arriveeImage,
+    gemholderImage,
     checkpointImages,
     gemImages,
     grassCanvasRef,

@@ -351,7 +351,7 @@ export const drawProjectiles = (ctx, projectiles) => {
 
 // Dessiner la preview de placement
 export const drawPlacementPreview = (ctx, hoveredCell, deps) => {
-  const { gameState, placementCount, towers, tempTowers } = deps;
+  const { gameState, placementCount, towers, tempTowers, gemholderImage } = deps;
 
   if (gameState !== 'preparation' || !hoveredCell || placementCount >= 5) return;
 
@@ -360,6 +360,24 @@ export const drawPlacementPreview = (ctx, hoveredCell, deps) => {
   );
   if (existingTower) return;
 
-  // Dessiner la tuile de preview en isométrique avec transparence
-  drawIsoTile3D(ctx, hoveredCell.x, hoveredCell.y, '#22c55e', 0.3);
+  // Convertir la position en coordonnées isométriques
+  const { isoX, isoY } = gridToIso(hoveredCell.x + 0.5, hoveredCell.y + 0.5);
+
+  if (gemholderImage) {
+    // Dessiner l'image gemholder
+    const holderSize = ISO_TILE_WIDTH * 1.2; // Taille légèrement plus grande que la tuile
+    ctx.save();
+    ctx.globalAlpha = 0.8;
+    ctx.drawImage(
+      gemholderImage,
+      isoX - holderSize / 2,
+      isoY - holderSize / 2,
+      holderSize,
+      holderSize
+    );
+    ctx.restore();
+  } else {
+    // Fallback: dessiner la tuile de preview en isométrique avec transparence
+    drawIsoTile3D(ctx, hoveredCell.x, hoveredCell.y, '#22c55e', 0.3);
+  }
 };

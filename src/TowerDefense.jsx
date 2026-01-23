@@ -45,7 +45,7 @@ const TowerDefense = () => {
 
   // Custom hooks
   const { pseudo, bestScore, lastScore, updatePseudo, saveScore } = useLocalStorage();
-  const { logoImage, grassImage, portailImage, arriveeImage, checkpointImages, gemImages, grassCanvasRef, loadGemImages } = useImages();
+  const { logoImage, grassImage, portailImage, arriveeImage, gemholderImage, checkpointImages, gemImages, grassCanvasRef, loadGemImages } = useImages();
   const { camera, setCamera, isDragging, setIsDragging, dragStart, setDragStart, getZoom, clampCamera, zoomIn, zoomOut, resetCamera } = useCamera();
   const { hoveredTower, setHoveredTower, hoveredCell, setHoveredCell, hoveredButton, setHoveredButton, hoveredMenuButton, setHoveredMenuButton, mousePos, setMousePos, contextMenu, setContextMenu } = useUI();
   const { enemies, setEnemies, projectiles, setProjectiles } = useEnemies();
@@ -336,7 +336,7 @@ const TowerDefense = () => {
     drawTowers(ctx, towers, { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom, gemImages });
     drawTempTowers(ctx, tempTowers, { hoveredTower, selectedTempTower, zoom, gemImages });
     drawEnemies(ctx, enemies, currentPath, zoom);
-    drawPlacementPreview(ctx, hoveredCell, { gameState, placementCount, towers, tempTowers });
+    drawPlacementPreview(ctx, hoveredCell, { gameState, placementCount, towers, tempTowers, gemholderImage });
     drawProjectiles(ctx, projectiles);
 
     ctx.restore();
