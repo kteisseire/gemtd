@@ -63,4 +63,57 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_leaderboard_score ON leaderboard(score DESC)
 `);
 
+// Créer la table des types d'ennemis
+db.exec(`
+  CREATE TABLE IF NOT EXISTS enemy_types (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    hp INTEGER NOT NULL,
+    speed REAL NOT NULL,
+    resistance1 TEXT,
+    resistance2 TEXT,
+    emoji TEXT NOT NULL
+  )
+`);
+
+// Créer la table des vagues
+db.exec(`
+  CREATE TABLE IF NOT EXISTS waves (
+    wave_number INTEGER PRIMARY KEY,
+    enemy_type_id TEXT NOT NULL,
+    enemy_count INTEGER NOT NULL,
+    FOREIGN KEY (enemy_type_id) REFERENCES enemy_types(id)
+  )
+`);
+
+// Initialiser les types d'ennemis par défaut si la table est vide
+const enemyCount = db.prepare('SELECT COUNT(*) as count FROM enemy_types').get();
+if (enemyCount.count === 0) {
+  const insertEnemy = db.prepare(`
+    INSERT INTO enemy_types (id, name, hp, speed, resistance1, resistance2, emoji)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  insertEnemy.run('GOBLIN', 'Goblin', 100, 0.5, 'RED', 'YELLOW', '👺');
+  insertEnemy.run('ORC', 'Orc', 180, 0.4, 'GREEN', 'ORANGE', '👹');
+  insertEnemy.run('TROLL', 'Troll', 300, 0.35, 'BLUE', 'PURPLE', '👾');
+  insertEnemy.run('DEMON', 'Démon', 450, 0.5, 'PURPLE', 'PINK', '😈');
+  insertEnemy.run('DRAGON', 'Dragon', 700, 0.45, 'RED', 'BLACK', '🐉');
+}
+
+// Initialiser les 5 premières vagues si la table est vide
+const waveCount = db.prepare('SELECT COUNT(*) as count FROM waves').get();
+if (waveCount.count === 0) {
+  const insertWave = db.prepare(`
+    INSERT INTO waves (wave_number, enemy_type_id, enemy_count)
+    VALUES (?, ?, ?)
+  `);
+
+  insertWave.run(1, 'GOBLIN', 10);
+  insertWave.run(2, 'GOBLIN', 15);
+  insertWave.run(3, 'ORC', 12);
+  insertWave.run(4, 'ORC', 18);
+  insertWave.run(5, 'TROLL', 10);
+}
+
 export default db;

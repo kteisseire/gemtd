@@ -148,3 +148,45 @@ export const submitScore = async (pseudo, score, wave) => {
     throw error;
   }
 };
+
+// Charger les types d'ennemis depuis l'API
+export const fetchEnemies = async () => {
+  try {
+    const response = await fetch(`${API_BASE}/enemies`);
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error('Failed to fetch enemies');
+  } catch (error) {
+    console.error('Erreur lors du chargement des ennemis:', error);
+    throw error;
+  }
+};
+
+// Charger les vagues depuis l'API
+export const fetchWaves = async () => {
+  try {
+    const response = await fetch(`${API_BASE}/waves`);
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error('Failed to fetch waves');
+  } catch (error) {
+    console.error('Erreur lors du chargement des vagues:', error);
+    throw error;
+  }
+};
+
+// Charger une vague spécifique
+export const fetchWave = async (waveNumber) => {
+  try {
+    const response = await fetch(`${API_BASE}/waves/${waveNumber}`);
+    if (response.ok) {
+      return await response.json();
+    }
+    throw new Error('Failed to fetch wave');
+  } catch (error) {
+    console.error(`Erreur lors du chargement de la vague ${waveNumber}:`, error);
+    throw error;
+  }
+};

@@ -2,10 +2,39 @@ import { GRID_SIZE, ENEMY_EMOJIS, SPAWN_POINT, GOAL_POINT, isInSpawnZone, isInGo
 import { findPath } from './pathfinding';
 import { gridToIso } from '../renderers/canvasUtils';
 
-// Creer les ennemis d'une nouvelle vague
-export const createWaveEnemies = (wave, gemTypes, previousWaveHealth, enemyIdCounterRef) => {
-  const enemyCount = Math.floor(10 + Math.random() * 11);
+// Creer les ennemis d'une nouvelle vague (avec données de BDD)
+export const createWaveEnemies = (wave, gemTypes, previousWaveHealth, enemyIdCounterRef, waveData) => {
   const newEnemies = [];
+
+  // Si on a des données de vague de la BDD, les utiliser
+  if (waveData && waveData.enemyType) {
+    const { enemyCount, enemyType } = waveData;
+    const waveHealth = enemyType.hp;
+    const waveSpeed = enemyType.speed;
+    const resistance1 = enemyType.resistance1;
+    const resistance2 = enemyType.resistance2;
+    const waveEmoji = enemyType.emoji;
+
+    for (let i = 0; i < enemyCount; i++) {
+      newEnemies.push({
+        id: enemyIdCounterRef.current++,
+        pathIndex: -i * 2.5,
+        health: waveHealth,
+        maxHealth: waveHealth,
+        speed: waveSpeed,
+        speedMultiplier: 1.0,
+        reward: 10 + wave * 2,
+        effects: {},
+        emoji: waveEmoji,
+        resistances: [resistance1, resistance2]
+      });
+    }
+
+    return { enemies: newEnemies, newPreviousWaveHealth: waveHealth };
+  }
+
+  // Fallback : génération aléatoire si pas de données BDD (pour les vagues > 5)
+  const enemyCount = Math.floor(10 + Math.random() * 11);
   const waveEmoji = ENEMY_EMOJIS[Math.floor(Math.random() * ENEMY_EMOJIS.length)];
   const gemTypeKeys = Object.keys(gemTypes).filter(key => key !== 'BASE');
   const shuffled = [...gemTypeKeys].sort(() => Math.random() - 0.5);

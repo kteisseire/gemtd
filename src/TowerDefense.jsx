@@ -5,7 +5,7 @@ import { FieldInputEditor, EffectSelector, EmojiSelector, RecipeEditor } from '.
 
 // Config
 import { TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config/constants';
-import { submitScore, fetchLeaderboard, createRecipe, updateRecipe } from './services/api';
+import { submitScore, fetchLeaderboard, createRecipe, updateRecipe, fetchWaves } from './services/api';
 
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart, calculateCurrentPath } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
@@ -59,6 +59,7 @@ const TowerDefense = () => {
   // Other state
   const [currentPath, setCurrentPath] = useState(null);
   const [previousWaveHealth, setPreviousWaveHealth] = useState(0);
+  const [wavesData, setWavesData] = useState(null);
 
   // Refs
   const enemyIdCounter = useRef(0);
@@ -68,11 +69,12 @@ const TowerDefense = () => {
 
   // Spawn wave
   const spawnWave = useCallback(() => {
-    const { enemies: newEnemies, newPreviousWaveHealth } = createWaveEnemies(wave, gemTypes, previousWaveHealth, enemyIdCounter);
+    const waveData = wavesData ? wavesData[wave] : null;
+    const { enemies: newEnemies, newPreviousWaveHealth } = createWaveEnemies(wave, gemTypes, previousWaveHealth, enemyIdCounter, waveData);
     setPreviousWaveHealth(newPreviousWaveHealth);
     setEnemies(newEnemies);
     setGameState('wave');
-  }, [wave, gemTypes, previousWaveHealth]);
+  }, [wave, gemTypes, previousWaveHealth, wavesData]);
 
   // Start wave
   const startWave = () => {
@@ -257,6 +259,18 @@ const TowerDefense = () => {
       loadGemImages(gemTypes);
     }
   }, [gemTypes, loadGemImages]);
+
+  // Charger les vagues depuis l'API au démarrage
+  useEffect(() => {
+    fetchWaves()
+      .then(waves => {
+        setWavesData(waves);
+      })
+      .catch(err => {
+        console.error('Erreur lors du chargement des vagues:', err);
+        setWavesData(null); // Utiliser le fallback aléatoire
+      });
+  }, []);
 
   // Canvas handlers (extracted to hooks)
   const { handleCanvasClick } = useCanvasHandlers({

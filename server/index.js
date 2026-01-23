@@ -228,6 +228,96 @@ app.post('/api/leaderboard', (req, res) => {
   }
 });
 
+// GET - Récupérer tous les types d'ennemis
+app.get('/api/enemies', (req, res) => {
+  try {
+    const enemies = db.prepare('SELECT * FROM enemy_types').all();
+
+    // Transformer en objet indexé par ID
+    const enemiesObject = {};
+    enemies.forEach(enemy => {
+      enemiesObject[enemy.id] = {
+        name: enemy.name,
+        hp: enemy.hp,
+        speed: enemy.speed,
+        resistance1: enemy.resistance1,
+        resistance2: enemy.resistance2,
+        emoji: enemy.emoji
+      };
+    });
+
+    res.json(enemiesObject);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la récupération des ennemis' });
+  }
+});
+
+// GET - Récupérer toutes les vagues
+app.get('/api/waves', (req, res) => {
+  try {
+    const waves = db.prepare(`
+      SELECT w.wave_number, w.enemy_count, e.*
+      FROM waves w
+      JOIN enemy_types e ON w.enemy_type_id = e.id
+      ORDER BY w.wave_number
+    `).all();
+
+    // Transformer en objet indexé par numéro de vague
+    const wavesObject = {};
+    waves.forEach(wave => {
+      wavesObject[wave.wave_number] = {
+        waveNumber: wave.wave_number,
+        enemyCount: wave.enemy_count,
+        enemyType: {
+          id: wave.id,
+          name: wave.name,
+          hp: wave.hp,
+          speed: wave.speed,
+          resistance1: wave.resistance1,
+          resistance2: wave.resistance2,
+          emoji: wave.emoji
+        }
+      };
+    });
+
+    res.json(wavesObject);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la récupération des vagues' });
+  }
+});
+
+// GET - Récupérer une vague spécifique
+app.get('/api/waves/:wave_number', (req, res) => {
+  try {
+    const wave = db.prepare(`
+      SELECT w.wave_number, w.enemy_count, e.*
+      FROM waves w
+      JOIN enemy_types e ON w.enemy_type_id = e.id
+      WHERE w.wave_number = ?
+    `).get(req.params.wave_number);
+
+    if (!wave) {
+      return res.status(404).json({ error: 'Vague non trouvée' });
+    }
+
+    res.json({
+      waveNumber: wave.wave_number,
+      enemyCount: wave.enemy_count,
+      enemyType: {
+        id: wave.id,
+        name: wave.name,
+        hp: wave.hp,
+        speed: wave.speed,
+        resistance1: wave.resistance1,
+        resistance2: wave.resistance2,
+        emoji: wave.emoji
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la récupération de la vague' });
+  }
+});
+
 // Démarrer le serveur
 app.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
