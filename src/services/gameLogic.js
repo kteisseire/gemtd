@@ -141,6 +141,15 @@ export const performFusion = (selectedTower, fusionInfo, towers, gemTypes) => {
   return updatedTowers;
 };
 
+// Calculer le chemin en temps reel pendant le placement
+export const calculateCurrentPath = (towers, tempTowers) => {
+  const allTowers = [...towers, ...tempTowers];
+  const obstacles = allTowers.map(t => ({ x: t.gridX, y: t.gridY }));
+  const goalCenter = { x: GOAL_POINT.x + 2, y: GOAL_POINT.y + 2 };
+  const spawnCenter = { x: SPAWN_POINT.x + 2, y: SPAWN_POINT.y + 2 };
+  return findPath(spawnCenter, goalCenter, obstacles);
+};
+
 // Preparer le demarrage d'une vague
 export const prepareWaveStart = (towers, tempTowers, selectedTempTower, gemTypes) => {
   const confirmedTowers = tempTowers.map(tower => {

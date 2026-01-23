@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "node start.js",
     "dev": "vite",
     "server": "node server/index.js",
     "balance": "node server/balancing-tool.js",

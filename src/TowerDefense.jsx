@@ -7,7 +7,7 @@ import { FieldInputEditor, EffectSelector, EmojiSelector, RecipeEditor } from '.
 import { TOOLBAR_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from './config/constants';
 import { submitScore, fetchLeaderboard, createRecipe, updateRecipe } from './services/api';
 
-import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart } from './services/gameLogic';
+import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart, calculateCurrentPath } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
 import { gridToIso } from './renderers/canvasUtils';
 
@@ -214,6 +214,13 @@ const TowerDefense = () => {
     grassCanvasRef.current = null;
   }, []);
 
+  // Calculer le chemin en temps réel pendant le placement des gemmes
+  useEffect(() => {
+    if (gameState === 'preparation') {
+      const path = calculateCurrentPath(towers, tempTowers);
+      setCurrentPath(path);
+    }
+  }, [gameState, towers, tempTowers]);
 
   // Wave completion
   useEffect(() => {

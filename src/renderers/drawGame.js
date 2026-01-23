@@ -365,7 +365,7 @@ export const drawPlacementPreview = (ctx, hoveredCell, deps) => {
 
   if (gemholderImage) {
     // Dessiner l'image gemholder
-    const holderSize = ISO_TILE_WIDTH * 1.2; // Taille légèrement plus grande que la tuile
+    const holderSize = ISO_TILE_WIDTH * 0.7; // Taille réduite pour proportions correctes
     ctx.save();
     ctx.globalAlpha = 0.8;
     ctx.drawImage(
