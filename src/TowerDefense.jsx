@@ -274,6 +274,18 @@ const TowerDefense = () => {
       });
   }, []);
 
+  // Effacer le message d'erreur quand les tours changent (chemin débloqué)
+  useEffect(() => {
+    if (gameState === 'preparation' && errorMessage) {
+      // Recalculer le chemin pour vérifier s'il est toujours bloqué
+      const { path } = prepareWaveStart(towers, tempTowers, selectedTempTower, gemTypes);
+      if (path) {
+        // Le chemin est débloqué, effacer le message
+        setErrorMessage(null);
+      }
+    }
+  }, [towers, tempTowers, gameState, errorMessage, selectedTempTower, gemTypes]);
+
   // Canvas handlers (extracted to hooks)
   const { handleCanvasClick } = useCanvasHandlers({
     canvasRef, getZoom, camera, gameState, contextMenu, adminPage, pseudo, gemTypes, editingGem, fusionRecipes, enemyTypes, editingEnemy, editingField,
