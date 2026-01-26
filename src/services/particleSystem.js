@@ -136,104 +136,247 @@ class ParticlePool {
   }
 }
 
-// Configuration des effets par type de gemme
+// Configuration des effets par type de gemme (basé sur DEFAULT_GEM_TYPES)
 export const PARTICLE_EFFECTS = {
+  // GREEN - Poison (effet: poison) ☠️
   'poison': {
     projectileColor: '#22c55e',
-    projectileGlow: 'rgba(34, 197, 94, 0.5)',
+    projectileGlow: 'rgba(34, 197, 94, 0.6)',
     trail: {
       enabled: true,
       color: '#4ade80',
       size: 2,
       frequency: 3,
-      life: 300
+      life: 400
     },
     impact: {
-      count: 8,
+      count: 10,
       colors: ['#22c55e', '#4ade80', '#86efac'],
       size: { min: 2, max: 4 },
       speed: { min: 20, max: 60 },
-      life: 500,
-      gravity: 0.1
+      life: 600,
+      gravity: 0.08
     }
   },
-  'freeze': {
+
+  // BLUE - Glace (effet: slow) ❄️
+  'slow': {
     projectileColor: '#3b82f6',
-    projectileGlow: 'rgba(59, 130, 246, 0.6)',
+    projectileGlow: 'rgba(59, 130, 246, 0.7)',
     trail: {
       enabled: true,
       color: '#60a5fa',
       size: 3,
       frequency: 2,
-      life: 400,
+      life: 450,
       sparkle: true
     },
     impact: {
       count: 12,
-      colors: ['#3b82f6', '#60a5fa', '#93c5fd'],
+      colors: ['#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe'],
       size: { min: 2, max: 5 },
-      speed: { min: 30, max: 80 },
-      life: 600,
+      speed: { min: 15, max: 50 },
+      life: 700,
       gravity: -0.05,
       sparkle: true
     }
   },
-  'burn': {
+
+  // RED - Feu (effet: damage/burn) 🔥
+  'damage': {
     projectileColor: '#ef4444',
-    projectileGlow: 'rgba(239, 68, 68, 0.7)',
+    projectileGlow: 'rgba(239, 68, 68, 0.8)',
     trail: {
       enabled: true,
       color: '#f97316',
       size: 3,
       frequency: 2,
-      life: 250,
+      life: 300,
       flicker: true
     },
     impact: {
-      count: 10,
-      colors: ['#ef4444', '#f97316', '#fb923c'],
-      size: { min: 2, max: 4 },
-      speed: { min: 25, max: 70 },
-      life: 400,
-      gravity: -0.15
+      count: 12,
+      colors: ['#ef4444', '#f97316', '#fb923c', '#fdba74'],
+      size: { min: 2, max: 5 },
+      speed: { min: 30, max: 80 },
+      life: 500,
+      gravity: -0.2
     }
   },
+
+  // GRAY - Pierre (effet: stun) 🗿
   'stun': {
-    projectileColor: '#a855f7',
-    projectileGlow: 'rgba(168, 85, 247, 0.8)',
+    projectileColor: '#6b7280',
+    projectileGlow: 'rgba(107, 114, 128, 0.7)',
     trail: {
       enabled: false
     },
     impact: {
-      count: 15,
-      colors: ['#a855f7', '#c084fc', '#e9d5ff'],
+      count: 16,
+      colors: ['#6b7280', '#9ca3af', '#d1d5db', '#e5e7eb'],
+      size: { min: 3, max: 7 },
+      speed: { min: 50, max: 120 },
+      life: 800,
+      gravity: 0.15,
+      rotationSpeed: { min: -0.15, max: 0.15 }
+    }
+  },
+
+  // YELLOW - Foudre (effet: fast) ⚡
+  'fast': {
+    projectileColor: '#eab308',
+    projectileGlow: 'rgba(234, 179, 8, 0.9)',
+    trail: {
+      enabled: true,
+      color: '#fde047',
+      size: 2,
+      frequency: 5,
+      life: 200,
+      sparkle: true
+    },
+    impact: {
+      count: 8,
+      colors: ['#eab308', '#fde047', '#fef08a', '#ffffff'],
+      size: { min: 2, max: 4 },
+      speed: { min: 60, max: 140 },
+      life: 400,
+      gravity: 0,
+      sparkle: true
+    }
+  },
+
+  // PURPLE - Arcane (effet: magic) 🔮
+  'magic': {
+    projectileColor: '#a855f7',
+    projectileGlow: 'rgba(168, 85, 247, 0.9)',
+    trail: {
+      enabled: true,
+      color: '#c084fc',
+      size: 3,
+      frequency: 2,
+      life: 500,
+      sparkle: true
+    },
+    impact: {
+      count: 14,
+      colors: ['#a855f7', '#c084fc', '#e9d5ff', '#fae8ff'],
       size: { min: 3, max: 6 },
       speed: { min: 40, max: 100 },
-      life: 700,
+      life: 800,
       gravity: 0,
       sparkle: true,
       rotationSpeed: { min: -0.1, max: 0.1 }
     }
   },
-  'slow': {
+
+  // ORANGE - Explosion (effet: aoe) 💥
+  'aoe': {
+    projectileColor: '#f97316',
+    projectileGlow: 'rgba(249, 115, 22, 0.8)',
+    trail: {
+      enabled: true,
+      color: '#fb923c',
+      size: 4,
+      frequency: 3,
+      life: 350
+    },
+    impact: {
+      count: 20,
+      colors: ['#f97316', '#fb923c', '#fdba74', '#fed7aa'],
+      size: { min: 3, max: 8 },
+      speed: { min: 40, max: 120 },
+      life: 600,
+      gravity: 0.1
+    }
+  },
+
+  // CYAN - Eau (effet: rapid) 💧
+  'rapid': {
     projectileColor: '#06b6d4',
-    projectileGlow: 'rgba(6, 182, 212, 0.5)',
+    projectileGlow: 'rgba(6, 182, 212, 0.6)',
     trail: {
       enabled: true,
       color: '#22d3ee',
       size: 2,
-      frequency: 4,
-      life: 350
+      frequency: 6,
+      life: 300
     },
     impact: {
-      count: 6,
-      colors: ['#06b6d4', '#22d3ee', '#67e8f9'],
+      count: 8,
+      colors: ['#06b6d4', '#22d3ee', '#67e8f9', '#cffafe'],
       size: { min: 2, max: 4 },
-      speed: { min: 15, max: 40 },
-      life: 450,
+      speed: { min: 30, max: 70 },
+      life: 500,
+      gravity: 0.12
+    }
+  },
+
+  // PINK - Lumière (effet: crit) ✨
+  'crit': {
+    projectileColor: '#ec4899',
+    projectileGlow: 'rgba(236, 72, 153, 0.9)',
+    trail: {
+      enabled: true,
+      color: '#f9a8d4',
+      size: 3,
+      frequency: 3,
+      life: 400,
+      sparkle: true
+    },
+    impact: {
+      count: 16,
+      colors: ['#ec4899', '#f9a8d4', '#fbcfe8', '#fce7f3'],
+      size: { min: 3, max: 7 },
+      speed: { min: 50, max: 130 },
+      life: 700,
+      gravity: -0.1,
+      sparkle: true
+    }
+  },
+
+  // BLACK - Ombre (effet: chain) 🌑
+  'chain': {
+    projectileColor: '#1f2937',
+    projectileGlow: 'rgba(31, 41, 55, 0.8)',
+    trail: {
+      enabled: true,
+      color: '#374151',
+      size: 2,
+      frequency: 4,
+      life: 450
+    },
+    impact: {
+      count: 10,
+      colors: ['#1f2937', '#374151', '#4b5563', '#6b7280'],
+      size: { min: 2, max: 5 },
+      speed: { min: 35, max: 90 },
+      life: 650,
       gravity: 0.05
     }
   },
+
+  // BASE/NONE - Neutre ⚪
+  'none': {
+    projectileColor: '#94a3b8',
+    projectileGlow: 'rgba(148, 163, 184, 0.4)',
+    trail: {
+      enabled: true,
+      color: '#cbd5e1',
+      size: 2,
+      frequency: 3,
+      life: 300
+    },
+    impact: {
+      count: 6,
+      colors: ['#94a3b8', '#cbd5e1', '#e2e8f0'],
+      size: { min: 2, max: 3 },
+      speed: { min: 20, max: 50 },
+      life: 400,
+      gravity: 0.1
+    }
+  },
+
+  // DEFAULT (fallback)
   'default': {
     projectileColor: '#f59e0b',
     projectileGlow: 'rgba(245, 158, 11, 0.5)',
