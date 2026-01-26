@@ -17,6 +17,7 @@
     "cors": "^2.8.5",
     "emoji-picker-react": "^4.16.1",
     "express": "^5.2.1",
+    "howler": "^2.2.4",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

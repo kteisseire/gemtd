@@ -10,6 +10,8 @@ import { submitScore, fetchLeaderboard, createRecipe, updateRecipe, fetchWaves }
 import { createWaveEnemies, canPlaceTower, createTower, prepareWaveStart, calculateCurrentPath } from './services/gameLogic';
 import { getEnemyPosition, findTowerTarget, createProjectile } from './services/combatSystem';
 import { gridToIso } from './renderers/canvasUtils';
+import { soundManager } from './services/soundManager';
+import { generateSynthSounds } from './services/soundGenerator';
 
 // Hooks
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -66,6 +68,17 @@ const TowerDefense = () => {
   const colorPickerRef = useRef(null);
   const scoreSubmittedRef = useRef(false);
 
+  // Initialiser le système audio
+  useEffect(() => {
+    const synthSounds = generateSynthSounds();
+
+    // Charger tous les sons
+    Object.entries(synthSounds).forEach(([name, dataURL]) => {
+      soundManager.load(name, dataURL);
+    });
+
+    soundManager.init();
+  }, []);
 
   // Spawn wave
   const spawnWave = useCallback(() => {
@@ -83,6 +96,7 @@ const TowerDefense = () => {
     const { allTowers, path } = prepareWaveStart(towers, tempTowers, selectedTempTower, gemTypes);
     if (!path) {
       setErrorMessage("Chemin bloque !");
+      soundManager.error();
       return;
     }
     setTowers(allTowers);
@@ -91,6 +105,7 @@ const TowerDefense = () => {
     setSelectedTempTower(null);
     setPlacementCount(0);
     setContextMenu(null);
+    soundManager.waveStart();
     spawnWave();
   };
 
@@ -102,6 +117,7 @@ const TowerDefense = () => {
     if (!newTower) return;
     setTempTowers(prev => [...prev, newTower]);
     setPlacementCount(prev => prev + 1);
+    soundManager.placeTower();
   };
 
   // Reset game

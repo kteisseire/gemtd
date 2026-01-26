@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { soundManager } from '../services/soundManager';
 
 /**
  * Hook personnalisé pour gérer la logique de fusion des gemmes
@@ -84,6 +85,7 @@ export const useFusion = ({ towers, setTowers, fusionRecipes, gemTypes }) => {
       }
     });
 
+    soundManager.fuseTowers();
     setTowers(updatedTowers);
   }, [towers, gemTypes, setTowers]);
 
