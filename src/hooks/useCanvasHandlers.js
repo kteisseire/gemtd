@@ -123,7 +123,16 @@ export const useCanvasHandlers = (deps) => {
             setFieldInputValue(pseudo || '');
             setEditingField('pseudo');
           }
-          else if (btn.id === 'admin') setAdminPage('home');
+          else if (btn.id === 'admin') {
+            // Demander le mot de passe
+            const password = prompt('Mot de passe administrateur :');
+            if (password === 'prout') {
+              setAdminPage('home');
+            } else if (password !== null) {
+              // Si l'utilisateur n'a pas annulé, afficher une erreur
+              alert('Mot de passe incorrect !');
+            }
+          }
           return;
         }
       }
