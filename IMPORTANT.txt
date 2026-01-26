@@ -1,0 +1,27 @@
+============================================
+  TOWER DEFENSE - GUIDE DE DEMARRAGE
+============================================
+
+PROBLEME RESOLU:
+Le fichier .env a ete cree pour connecter le frontend a l'API.
+
+POUR LANCER LE JEU:
+1. Double-cliquez sur LANCER.bat
+2. Attendez 5 secondes que tout demarre
+3. Ouvrez votre navigateur sur: http://localhost:5176
+
+POUR ARRETER LE JEU:
+- Option 1: Fermez la fenetre CMD
+- Option 2: Double-cliquez sur STOP.bat (tue tous les processus Node)
+
+SI PROBLEME:
+1. Executez STOP.bat
+2. Attendez 2 secondes
+3. Relancez LANCER.bat
+
+FICHIERS IMPORTANTS:
+- LANCER.bat : Lance le jeu
+- STOP.bat   : Arrete tous les serveurs
+- .env       : Configuration de l'API (ne pas supprimer!)
+
+============================================
