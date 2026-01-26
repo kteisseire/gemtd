@@ -7,6 +7,7 @@ import { useState } from 'react';
 export const useAdmin = () => {
   const [adminPage, setAdminPage] = useState(null);
   const [editingGem, setEditingGem] = useState(null);
+  const [editingEnemy, setEditingEnemy] = useState(null);
   const [adminMessage, setAdminMessage] = useState(null);
   const [editingRecipe, setEditingRecipe] = useState(null);
 
@@ -26,6 +27,7 @@ export const useAdmin = () => {
     // États principaux
     adminPage,
     editingGem,
+    editingEnemy,
     adminMessage,
     editingRecipe,
 
@@ -44,6 +46,7 @@ export const useAdmin = () => {
     // Setters
     setAdminPage,
     setEditingGem,
+    setEditingEnemy,
     setAdminMessage,
     setEditingRecipe,
     setShowColorPicker,

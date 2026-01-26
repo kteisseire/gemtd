@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:3001/api';
+// Utiliser l'URL de l'API en fonction de l'environnement
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // Charger les gemmes depuis l'API
 export const fetchGems = async () => {
@@ -189,4 +190,38 @@ export const fetchWave = async (waveNumber) => {
     console.error(`Erreur lors du chargement de la vague ${waveNumber}:`, error);
     throw error;
   }
+};
+
+// Creer un nouvel ennemi
+export const createEnemy = async (enemyData) => {
+  const response = await fetch(`${API_BASE}/enemies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(enemyData)
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create enemy');
+  }
+  return await response.json();
+};
+
+// Mettre a jour un ennemi
+export const updateEnemy = async (enemyId, enemyData) => {
+  const response = await fetch(`${API_BASE}/enemies/${enemyId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(enemyData)
+  });
+  if (!response.ok) throw new Error('Failed to update enemy');
+  return await response.json();
+};
+
+// Supprimer un ennemi
+export const deleteEnemy = async (enemyId) => {
+  const response = await fetch(`${API_BASE}/enemies/${enemyId}`, {
+    method: 'DELETE'
+  });
+  if (!response.ok) throw new Error('Failed to delete enemy');
+  return true;
 };

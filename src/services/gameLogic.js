@@ -6,8 +6,11 @@ import { gridToIso } from '../renderers/canvasUtils';
 export const createWaveEnemies = (wave, gemTypes, previousWaveHealth, enemyIdCounterRef, waveData) => {
   const newEnemies = [];
 
+  console.log('createWaveEnemies - wave:', wave, 'waveData:', waveData);
+
   // Si on a des données de vague de la BDD, les utiliser
   if (waveData && waveData.enemyType) {
+    console.log('Utilisation des données BDD pour la vague', wave);
     const { enemyCount, enemyType } = waveData;
     const waveHealth = enemyType.hp;
     const waveSpeed = enemyType.speed;
@@ -32,6 +35,8 @@ export const createWaveEnemies = (wave, gemTypes, previousWaveHealth, enemyIdCou
 
     return { enemies: newEnemies, newPreviousWaveHealth: waveHealth };
   }
+
+  console.log('Utilisation du fallback aléatoire pour la vague', wave);
 
   // Fallback : génération aléatoire si pas de données BDD (pour les vagues > 5)
   const enemyCount = Math.floor(10 + Math.random() * 11);

@@ -1,4 +1,4 @@
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../config/constants';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, EFFECT_NAMES, EFFECT_DESCRIPTIONS } from '../config/constants';
 import { drawStyledButton } from './drawButton';
 
 // Dessiner la page d'admin
@@ -58,15 +58,24 @@ export const drawAdminPage = (ctx, adminPage, deps) => {
   ctx.font = '14px Arial';
   ctx.fillStyle = '#64748b';
   if (adminPage === 'gems') ctx.fillText('Gestion des gemmes', CANVAS_WIDTH / 2, 55);
+  else if (adminPage === 'enemies') ctx.fillText('Gestion des ennemis', CANVAS_WIDTH / 2, 55);
+  else if (adminPage === 'resistances') ctx.fillText('Gestion des résistances', CANVAS_WIDTH / 2, 55);
   else if (adminPage === 'recipes') ctx.fillText('Recettes de fusion', CANVAS_WIDTH / 2, 55);
   else if (adminPage === 'edit-gem') ctx.fillText('Modification de gemme', CANVAS_WIDTH / 2, 55);
+  else if (adminPage === 'edit-enemy') ctx.fillText('Modification d\'ennemi', CANVAS_WIDTH / 2, 55);
 
   if (adminPage === 'home') {
     drawAdminHome(ctx, hoveredMenuButton);
   } else if (adminPage === 'gems') {
     drawAdminGems(ctx, gemTypes, hoveredMenuButton);
+  } else if (adminPage === 'enemies') {
+    drawAdminEnemies(ctx, deps.enemyTypes, hoveredMenuButton);
+  } else if (adminPage === 'resistances') {
+    drawAdminResistances(ctx, deps.enemyTypes, gemTypes, hoveredMenuButton);
   } else if (adminPage === 'edit-gem' && editingGem) {
     drawAdminEditGem(ctx, editingGem, hoveredMenuButton);
+  } else if (adminPage === 'edit-enemy' && deps.editingEnemy) {
+    drawAdminEditEnemy(ctx, deps.editingEnemy, hoveredMenuButton, gemTypes, deps.editingField);
   } else if (adminPage === 'recipes') {
     drawAdminRecipes(ctx, fusionRecipes, gemTypes, hoveredMenuButton);
   }
@@ -92,18 +101,20 @@ export const drawAdminPage = (ctx, adminPage, deps) => {
 // Page d'accueil admin
 const drawAdminHome = (ctx, hoveredMenuButton) => {
   const centerX = CANVAS_WIDTH / 2;
-  const centerY = CANVAS_HEIGHT / 2;
+  const centerY = CANVAS_HEIGHT / 2 - 60;
 
   // Cartes de menu
   const cards = [
-    { id: 'admin-gems', icon: '💎', title: 'Gemmes', desc: 'Gérer les types de gemmes', color: '#3b82f6', y: centerY - 80 },
-    { id: 'admin-recipes', icon: '🔮', title: 'Recettes', desc: 'Configurer les fusions', color: '#a855f7', y: centerY + 60 }
+    { id: 'admin-gems', icon: '💎', title: 'Gemmes', desc: 'Gérer les types de gemmes', color: '#3b82f6', y: centerY - 120 },
+    { id: 'admin-enemies', icon: '👾', title: 'Ennemis', desc: 'Gérer les types d\'ennemis', color: '#ef4444', y: centerY - 20 },
+    { id: 'admin-resistances', icon: '🛡️', title: 'Résistances', desc: 'Configurer les résistances', color: '#f59e0b', y: centerY + 80 },
+    { id: 'admin-recipes', icon: '🔮', title: 'Recettes', desc: 'Configurer les fusions', color: '#a855f7', y: centerY + 180 }
   ];
 
   cards.forEach(card => {
     const isHovered = hoveredMenuButton === card.id;
     const cardWidth = 400;
-    const cardHeight = 100;
+    const cardHeight = 90;
     const cardX = centerX - cardWidth / 2;
 
     // Ombre
@@ -206,10 +217,17 @@ const drawAdminGems = (ctx, gemTypes, hoveredMenuButton) => {
     ctx.font = '12px Arial';
     ctx.fillText(gem.name || 'Sans nom', x + 55, y + 42);
 
-    // Stats
+    // Stats avec DPS
+    const dps = gem.damage && gem.speed ? ((gem.damage * 1000) / gem.speed).toFixed(1) : '0';
     ctx.font = '10px Arial';
     ctx.fillStyle = '#64748b';
     ctx.fillText(`⚔️${gem.damage} ⏱️${gem.speed} 📏${gem.range}`, x + 55, y + 58);
+
+    // DPS en surbrillance
+    ctx.fillStyle = '#22c55e';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`DPS: ${dps}`, x + 55, y + 68);
 
     // Badge type
     let badge = '';
@@ -236,9 +254,181 @@ const drawAdminGems = (ctx, gemTypes, hoveredMenuButton) => {
       variant: 'primary'
     });
   });
+
+  // Tableau des effets (coin inférieur droit)
+  const effectTableX = CANVAS_WIDTH - 420;
+  const effectTableY = CANVAS_HEIGHT - 480;
+  const effectTableWidth = 400;
+  const effectTableHeaderHeight = 40;
+  const effectRowHeight = 35;
+  const effectCount = Object.keys(EFFECT_NAMES).length;
+  const effectTableHeight = effectTableHeaderHeight + (effectCount * effectRowHeight);
+
+  // Fond du tableau
+  ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
+  ctx.beginPath();
+  ctx.roundRect(effectTableX, effectTableY, effectTableWidth, effectTableHeight, 12);
+  ctx.fill();
+  ctx.strokeStyle = '#a855f7';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // En-tête du tableau
+  ctx.fillStyle = '#a855f7';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('✨ Effets des Gemmes', effectTableX + effectTableWidth / 2, effectTableY + 25);
+
+  // Ligne de séparation
+  ctx.strokeStyle = '#475569';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(effectTableX + 15, effectTableY + effectTableHeaderHeight);
+  ctx.lineTo(effectTableX + effectTableWidth - 15, effectTableY + effectTableHeaderHeight);
+  ctx.stroke();
+
+  // Lignes des effets
+  let effectY = effectTableY + effectTableHeaderHeight + 5;
+  Object.keys(EFFECT_NAMES).forEach((effectKey, index) => {
+    const effectName = EFFECT_NAMES[effectKey];
+    const effectDesc = EFFECT_DESCRIPTIONS[effectKey];
+
+    // Fond alterné
+    if (index % 2 === 0) {
+      ctx.fillStyle = 'rgba(51, 65, 85, 0.3)';
+      ctx.fillRect(effectTableX + 10, effectY, effectTableWidth - 20, effectRowHeight);
+    }
+
+    // Nom de l'effet (en gras)
+    ctx.fillStyle = effectKey === 'none' ? '#64748b' : '#22c55e';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(effectName, effectTableX + 20, effectY + 14);
+
+    // Description de l'effet
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px Arial';
+    ctx.fillText(effectDesc, effectTableX + 20, effectY + 28);
+
+    effectY += effectRowHeight;
+  });
 };
 
 // Page des recettes de fusion
+// Page de gestion des résistances
+const drawAdminResistances = (ctx, enemyTypes, gemTypes, hoveredMenuButton) => {
+  const startY = 100;
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '14px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText('Configurez les résistances de chaque ennemi aux différentes gemmes (+20% de résistance)', 50, startY - 10);
+
+  // En-têtes
+  const headerY = startY + 20;
+  ctx.fillStyle = '#64748b';
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText('ENNEMI', 60, headerY);
+  ctx.fillText('BASE', 180, headerY);
+
+  // Afficher les icônes des gemmes en en-tête
+  const gemKeys = Object.keys(gemTypes).filter(k => k !== 'BASE');
+  let gemX = 280;
+  gemKeys.forEach(key => {
+    const gem = gemTypes[key];
+    ctx.font = '20px Arial';
+    ctx.fillText(gem.icon, gemX, headerY);
+    gemX += 50;
+  });
+
+  // Ligne séparatrice
+  ctx.strokeStyle = '#374151';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(50, headerY + 15);
+  ctx.lineTo(CANVAS_WIDTH - 50, headerY + 15);
+  ctx.stroke();
+
+  let y = headerY + 45;
+  const enemyKeys = Object.keys(enemyTypes);
+
+  enemyKeys.forEach(enemyKey => {
+    if (y > CANVAS_HEIGHT - 80) return;
+
+    const enemy = enemyTypes[enemyKey];
+
+    // Nom de l'ennemi
+    ctx.font = '24px Arial';
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillText(enemy.emoji, 60, y);
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText(enemyKey, 95, y - 5);
+
+    // Résistance globale (champ éditable)
+    const globalResButtonId = `global-resistance-${enemyKey}`;
+    const isGlobalResHovered = hoveredMenuButton === globalResButtonId;
+
+    // Fond du bouton
+    ctx.fillStyle = isGlobalResHovered ? 'rgba(245, 158, 11, 0.4)' : 'rgba(30, 41, 59, 0.7)';
+    ctx.beginPath();
+    ctx.roundRect(165, y - 25, 75, 42, 8);
+    ctx.fill();
+
+    // Bordure
+    ctx.strokeStyle = isGlobalResHovered ? '#f59e0b' : '#475569';
+    ctx.lineWidth = isGlobalResHovered ? 3 : 2;
+    ctx.stroke();
+
+    // Icône de crayon pour indiquer l'édition
+    ctx.fillStyle = isGlobalResHovered ? '#f59e0b' : '#94a3b8';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'right';
+    ctx.fillText('✏️', 233, y - 9);
+
+    // Valeur en pourcentage
+    ctx.fillStyle = isGlobalResHovered ? '#fbbf24' : '#f1f5f9';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    const globalResPercent = Math.round((enemy.global_resistance || 0.1) * 100);
+    ctx.fillText(`${globalResPercent}%`, 202, y + 3);
+    ctx.textAlign = 'left';
+
+    // Cases de résistance pour chaque gemme
+    gemX = 280;
+    gemKeys.forEach(gemKey => {
+      const hasResistance = enemy.resistances && enemy.resistances.includes(gemKey);
+      const buttonId = `resistance-${enemyKey}-${gemKey}`;
+      const isHovered = hoveredMenuButton === buttonId;
+
+      // Case de résistance
+      const boxSize = 35;
+      ctx.fillStyle = hasResistance
+        ? (isHovered ? 'rgba(239, 68, 68, 0.8)' : 'rgba(239, 68, 68, 0.6)')
+        : (isHovered ? 'rgba(51, 65, 85, 0.6)' : 'rgba(30, 41, 59, 0.4)');
+      ctx.beginPath();
+      ctx.roundRect(gemX, y - 22, boxSize, boxSize, 6);
+      ctx.fill();
+
+      ctx.strokeStyle = isHovered ? '#ef4444' : '#475569';
+      ctx.lineWidth = isHovered ? 2 : 1;
+      ctx.stroke();
+
+      // Icône de résistance
+      if (hasResistance) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('✓', gemX + boxSize/2, y - 2);
+        ctx.textAlign = 'left';
+      }
+
+      gemX += 50;
+    });
+
+    y += 55;
+  });
+};
+
 const drawAdminRecipes = (ctx, fusionRecipes, gemTypes, hoveredMenuButton) => {
   const startY = 90;
 
@@ -391,7 +581,14 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
   const isNewGem = !editingGem.id || editingGem.id === 'NEW';
   ctx.fillText(isNewGem ? 'Nouvelle gemme' : `Modification`, panelX + 120, startY + 75);
 
+  // Afficher le DPS calculé dans la preview
+  const dps = editingGem.damage && editingGem.speed ? ((editingGem.damage * 1000) / editingGem.speed).toFixed(1) : '0';
+  ctx.fillStyle = '#22c55e';
+  ctx.font = 'bold 16px Arial';
+  ctx.fillText(`DPS: ${dps}`, panelX + 120, startY + 95);
+
   // Champs
+  const dpsValue = editingGem.damage && editingGem.speed ? ((editingGem.damage * 1000) / editingGem.speed).toFixed(1) : '0';
   const fields = [
     { label: 'ID', value: editingGem.id || '', key: 'id', icon: '🔑' },
     { label: 'Nom', value: editingGem.name, key: 'name', icon: '📝' },
@@ -400,6 +597,7 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
     { label: 'Dégâts', value: editingGem.damage, key: 'damage', icon: '⚔️' },
     { label: 'Vitesse (ms)', value: editingGem.speed, key: 'speed', icon: '⏱️' },
     { label: 'Portée', value: editingGem.range, key: 'range', icon: '📏' },
+    { label: 'DPS (calculé)', value: dpsValue, key: 'dps', icon: '💥', readOnly: true },
     { label: 'Effet', value: editingGem.effect, key: 'effect', icon: '✨' },
     { label: 'Icône', value: editingGem.icon, key: 'icon', icon: '🎭' },
     { label: 'Droppable', value: editingGem.is_droppable ? 'Oui' : 'Non', key: 'is_droppable', icon: '🎲' },
@@ -411,11 +609,15 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
   const fieldHeight = 42;
 
   fields.forEach((field) => {
-    const isHovered = hoveredMenuButton === `field-${field.key}`;
+    const isHovered = !field.readOnly && hoveredMenuButton === `field-${field.key}`;
     const fieldX = panelX + 30;
 
-    // Fond du champ
-    ctx.fillStyle = isHovered ? 'rgba(59, 130, 246, 0.2)' : 'rgba(51, 65, 85, 0.5)';
+    // Fond du champ (grisé si lecture seule)
+    if (field.readOnly) {
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.1)'; // Vert léger pour DPS
+    } else {
+      ctx.fillStyle = isHovered ? 'rgba(59, 130, 246, 0.2)' : 'rgba(51, 65, 85, 0.5)';
+    }
     ctx.beginPath();
     ctx.roundRect(fieldX, y, fieldWidth, fieldHeight, 8);
     ctx.fill();
@@ -423,6 +625,10 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
     if (isHovered) {
       ctx.strokeStyle = '#3b82f6';
       ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (field.readOnly) {
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 1;
       ctx.stroke();
     }
 
@@ -436,9 +642,14 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
     ctx.font = '12px Arial';
     ctx.fillText(field.label, fieldX + 45, y + 18);
 
-    // Valeur
-    ctx.fillStyle = field.key === 'color' ? field.value : '#f1f5f9';
-    ctx.font = 'bold 14px Arial';
+    // Valeur (en vert si c'est le DPS)
+    if (field.key === 'dps') {
+      ctx.fillStyle = '#22c55e';
+      ctx.font = 'bold 16px Arial';
+    } else {
+      ctx.fillStyle = field.key === 'color' ? field.value : '#f1f5f9';
+      ctx.font = 'bold 14px Arial';
+    }
     ctx.fillText(String(field.value), fieldX + 45, y + 34);
 
     // Indicateur couleur
@@ -484,16 +695,18 @@ const drawAdminEditGem = (ctx, editingGem, hoveredMenuButton) => {
 };
 
 // Obtenir les boutons admin
-export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes = []) => {
+export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes = [], enemyTypes = {}, editingEnemy = null, editingField = null) => {
   const buttons = [
     { id: 'admin-back', x: 20, y: 15, width: 110, height: 40, action: 'back' }
   ];
 
   if (adminPage === 'home') {
     const centerX = CANVAS_WIDTH / 2;
-    const centerY = CANVAS_HEIGHT / 2;
-    buttons.push({ id: 'admin-gems', x: centerX - 200, y: centerY - 80, width: 400, height: 100, action: 'gems' });
-    buttons.push({ id: 'admin-recipes', x: centerX - 200, y: centerY + 60, width: 400, height: 100, action: 'recipes' });
+    const centerY = CANVAS_HEIGHT / 2 - 60;
+    buttons.push({ id: 'admin-gems', x: centerX - 200, y: centerY - 120, width: 400, height: 90, action: 'gems' });
+    buttons.push({ id: 'admin-enemies', x: centerX - 200, y: centerY - 20, width: 400, height: 90, action: 'enemies' });
+    buttons.push({ id: 'admin-resistances', x: centerX - 200, y: centerY + 80, width: 400, height: 90, action: 'resistances' });
+    buttons.push({ id: 'admin-recipes', x: centerX - 200, y: centerY + 180, width: 400, height: 90, action: 'recipes' });
   } else if (adminPage === 'gems') {
     // Bouton "Nouvelle gemme"
     buttons.push({ id: 'gem-create', x: CANVAS_WIDTH - 180, y: 80, width: 160, height: 40, action: 'create-gem' });
@@ -523,6 +736,186 @@ export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes =
         action: 'edit-gem',
         gemId: key
       });
+    });
+  } else if (adminPage === 'enemies') {
+    // Bouton "Nouvel ennemi"
+    buttons.push({ id: 'enemy-create', x: CANVAS_WIDTH - 180, y: 80, width: 160, height: 40, action: 'create-enemy' });
+
+    const startY = 140;
+    const enemyKeys = Object.keys(enemyTypes);
+    const cardWidth = 350;
+    const cardHeight = 90;
+    const cols = 2;
+    const gap = 30;
+    const startX = (CANVAS_WIDTH - (cols * cardWidth + (cols - 1) * gap)) / 2;
+
+    enemyKeys.forEach((key, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      const x = startX + col * (cardWidth + gap);
+      const y = startY + row * (cardHeight + gap);
+
+      if (y + cardHeight > CANVAS_HEIGHT - 50) return;
+
+      buttons.push({
+        id: `enemy-edit-${key}`,
+        x: x,
+        y: y,
+        width: cardWidth,
+        height: cardHeight,
+        action: 'edit-enemy',
+        enemyId: key
+      });
+    });
+  } else if (adminPage === 'edit-enemy' && editingEnemy) {
+    const panelWidth = 600;
+    const panelX = (CANVAS_WIDTH - panelWidth) / 2;
+    const startY = 140;
+
+    // Champs de saisie
+    const isNewEnemy = !editingEnemy.id || editingEnemy.id.trim() === '';
+    const fields = [
+      { field: 'id', y: 150, readOnly: !isNewEnemy },
+      { field: 'name', y: 210 },
+      { field: 'emoji', y: 270 },
+      { field: 'hp', y: 330 },
+      { field: 'speed', y: 390 },
+      { field: 'global_resistance', y: 450 }
+    ];
+
+    fields.forEach(f => {
+      if (!f.readOnly) {
+        buttons.push({
+          id: `enemy-field-${f.field}`,
+          x: panelX + 40,
+          y: startY + f.y + 5,
+          width: panelWidth - 80,
+          height: 40,
+          action: 'enemy-field',
+          fieldKey: f.field
+        });
+      }
+    });
+
+    // Boutons résistances (toggle dropdowns)
+    const resistY = startY + 510;
+    buttons.push({
+      id: 'enemy-resistance1',
+      x: panelX + 40,
+      y: resistY + 5,
+      width: 240,
+      height: 40,
+      action: 'toggle-resistance1'
+    });
+
+    buttons.push({
+      id: 'enemy-resistance2',
+      x: panelX + 320,
+      y: resistY + 5,
+      width: 240,
+      height: 40,
+      action: 'toggle-resistance2'
+    });
+
+    // Si dropdown résistance 1 est ouvert
+    if (editingField === 'resistance1-dropdown') {
+      const gemKeys = ['none', ...Object.keys(gemTypes).filter(k => k !== 'BASE')];
+      let dropY = resistY + 50;
+      gemKeys.forEach(key => {
+        buttons.push({
+          id: `res1-${key}`,
+          x: panelX + 40,
+          y: dropY,
+          width: 240,
+          height: 35,
+          action: 'select-resistance1',
+          gemId: key
+        });
+        dropY += 35;
+      });
+    }
+
+    // Si dropdown résistance 2 est ouvert
+    if (editingField === 'resistance2-dropdown') {
+      const gemKeys = ['none', ...Object.keys(gemTypes).filter(k => k !== 'BASE')];
+      let dropY = resistY + 50;
+      gemKeys.forEach(key => {
+        buttons.push({
+          id: `res2-${key}`,
+          x: panelX + 320,
+          y: dropY,
+          width: 240,
+          height: 35,
+          action: 'select-resistance2',
+          gemId: key
+        });
+        dropY += 35;
+      });
+    }
+
+    // Boutons en bas
+    const buttonsY = startY + 660;
+
+    // Bouton Enregistrer
+    buttons.push({
+      id: 'admin-save-enemy',
+      x: panelX + panelWidth - 180,
+      y: buttonsY,
+      width: 160,
+      height: 50,
+      action: 'save-enemy'
+    });
+
+    // Bouton Supprimer (seulement si c'est une modification)
+    if (!isNewEnemy) {
+      buttons.push({
+        id: 'admin-delete-enemy',
+        x: panelX + 20,
+        y: buttonsY,
+        width: 160,
+        height: 50,
+        action: 'delete-enemy'
+      });
+    }
+  } else if (adminPage === 'resistances') {
+    // Boutons pour chaque case de résistance
+    const startY = 120;
+    const headerY = startY + 20;
+    let y = headerY + 45;
+    const enemyKeys = Object.keys(enemyTypes);
+    const gemKeys = Object.keys(gemTypes).filter(k => k !== 'BASE');
+
+    enemyKeys.forEach(enemyKey => {
+      if (y > CANVAS_HEIGHT - 80) return;
+
+      // Bouton résistance globale
+      buttons.push({
+        id: `global-resistance-${enemyKey}`,
+        x: 165,
+        y: y - 25,
+        width: 75,
+        height: 42,
+        action: 'edit-global-resistance',
+        enemyId: enemyKey
+      });
+
+      let gemX = 280;
+      gemKeys.forEach(gemKey => {
+        const boxSize = 35;
+        buttons.push({
+          id: `resistance-${enemyKey}-${gemKey}`,
+          x: gemX,
+          y: y - 22,
+          width: boxSize,
+          height: boxSize,
+          action: 'toggle-resistance',
+          enemyId: enemyKey,
+          gemId: gemKey
+        });
+        gemX += 50;
+      });
+
+      y += 55;
     });
   } else if (adminPage === 'recipes') {
     buttons.push({ id: 'recipe-add', x: CANVAS_WIDTH - 160, y: 80, width: 140, height: 40, action: 'add-recipe' });
@@ -606,4 +999,292 @@ export const getAdminButtons = (adminPage, gemTypes, editingGem, fusionRecipes =
   }
 
   return buttons;
+};
+
+// Liste des ennemis
+const drawAdminEnemies = (ctx, enemyTypes, hoveredMenuButton) => {
+  const startY = 140;
+
+  // Bouton "Nouvel ennemi"
+  drawStyledButton(ctx, CANVAS_WIDTH - 180, 80, 160, 40, '+ Nouvel ennemi',
+    hoveredMenuButton === 'enemy-create', { fontSize: 'bold 14px Arial', variant: 'success' });
+
+  if (!enemyTypes || Object.keys(enemyTypes).length === 0) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '18px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Aucun ennemi configuré', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+    return;
+  }
+
+  const enemyKeys = Object.keys(enemyTypes);
+  const cardWidth = 350;
+  const cardHeight = 90;
+  const cols = 2;
+  const gap = 30;
+  const startX = (CANVAS_WIDTH - (cols * cardWidth + (cols - 1) * gap)) / 2;
+
+  enemyKeys.forEach((key, index) => {
+    const enemy = enemyTypes[key];
+    if (!enemy) return;
+
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    const x = startX + col * (cardWidth + gap);
+    const y = startY + row * (cardHeight + gap);
+
+    if (y + cardHeight > CANVAS_HEIGHT - 50) return;
+
+    const isHovered = hoveredMenuButton === `enemy-edit-${key}`;
+
+    // Carte ennemi
+    ctx.fillStyle = isHovered ? 'rgba(51, 65, 85, 0.95)' : 'rgba(30, 41, 59, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect(x, y, cardWidth, cardHeight, 10);
+    ctx.fill();
+
+    if (isHovered) {
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Emoji
+    ctx.font = '36px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(enemy.emoji || '👾', x + 20, y + 50);
+
+    // Nom
+    ctx.fillStyle = '#f1f5f9';
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText(enemy.name || key, x + 80, y + 30);
+
+    // Statistiques
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '14px Arial';
+    ctx.fillText(`HP: ${enemy.hp} | Vitesse: ${enemy.speed}`, x + 80, y + 55);
+
+    // Résistances
+    ctx.fillText(`Résistances: ${enemy.resistance1 || '?'}, ${enemy.resistance2 || '?'}`, x + 80, y + 75);
+  });
+};
+
+// Éditeur d'ennemi
+const drawAdminEditEnemy = (ctx, editingEnemy, hoveredMenuButton, gemTypes, editingField) => {
+  const panelWidth = 600;
+  const panelX = (CANVAS_WIDTH - panelWidth) / 2;
+  const startY = 140;
+
+  // Panneau principal
+  ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
+  ctx.beginPath();
+  ctx.roundRect(panelX, startY, panelWidth, 620, 15);
+  ctx.fill();
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Emoji de l'ennemi
+  ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+  ctx.beginPath();
+  ctx.arc(panelX + 60, startY + 60, 35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.font = '32px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(editingEnemy.emoji || '👾', panelX + 60, startY + 70);
+
+  // Titre
+  ctx.fillStyle = '#f1f5f9';
+  ctx.font = 'bold 24px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText(editingEnemy.name || 'Nouvel ennemi', panelX + 120, startY + 50);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '14px Arial';
+  const isNewEnemy = !editingEnemy.id || editingEnemy.id === 'NEW';
+  ctx.fillText(isNewEnemy ? 'Nouvel ennemi' : `Modification`, panelX + 120, startY + 75);
+
+  // Champs du formulaire
+  const fields = [
+    { label: 'ID', value: editingEnemy.id || '', y: 150, field: 'id', readOnly: !isNewEnemy },
+    { label: 'Nom', value: editingEnemy.name || '', y: 210, field: 'name' },
+    { label: 'Emoji', value: editingEnemy.emoji || '👾', y: 270, field: 'emoji' },
+    { label: 'HP', value: String(editingEnemy.hp || 100), y: 330, field: 'hp' },
+    { label: 'Vitesse', value: String(editingEnemy.speed || 0.5), y: 390, field: 'speed' },
+    { label: 'Résistance globale (%)', value: String((editingEnemy.global_resistance || 0.1) * 100), y: 450, field: 'global_resistance' }
+  ];
+
+  fields.forEach(f => {
+    const fieldY = startY + f.y;
+    const isHovered = hoveredMenuButton === `enemy-field-${f.field}`;
+
+    // Label
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText(f.label, panelX + 40, fieldY - 5);
+
+    // Champ
+    ctx.fillStyle = isHovered ? 'rgba(51, 65, 85, 1)' : 'rgba(15, 23, 42, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect(panelX + 40, fieldY + 5, panelWidth - 80, 40, 8);
+    ctx.fill();
+
+    if (f.readOnly) {
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1;
+    } else {
+      ctx.strokeStyle = isHovered ? '#ef4444' : '#475569';
+      ctx.lineWidth = isHovered ? 2 : 1;
+    }
+    ctx.stroke();
+
+    // Valeur
+    ctx.fillStyle = f.readOnly ? '#64748b' : '#f1f5f9';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(f.value || (f.readOnly ? '(généré auto)' : ''), panelX + 55, fieldY + 30);
+  });
+
+  // Résistances élémentaires (avec sélecteur de gemmes)
+  const resistY = startY + 510;
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = 'bold 14px Arial';
+  ctx.fillText('Résistances élémentaires (+20% chacune)', panelX + 40, resistY - 5);
+
+  const gemKeys = Object.keys(gemTypes).filter(k => k !== 'BASE');
+  const res1Hovered = hoveredMenuButton === 'enemy-resistance1';
+  const res2Hovered = hoveredMenuButton === 'enemy-resistance2';
+
+  // Résistance 1
+  ctx.fillStyle = res1Hovered ? 'rgba(51, 65, 85, 1)' : 'rgba(15, 23, 42, 0.8)';
+  ctx.beginPath();
+  ctx.roundRect(panelX + 40, resistY + 5, 240, 40, 8);
+  ctx.fill();
+  ctx.strokeStyle = res1Hovered ? '#ef4444' : '#475569';
+  ctx.lineWidth = res1Hovered ? 2 : 1;
+  ctx.stroke();
+
+  const gem1 = gemTypes[editingEnemy.resistance1];
+  ctx.fillStyle = '#f1f5f9';
+  ctx.font = '16px Arial';
+  ctx.fillText(gem1 ? `${gem1.icon} ${editingEnemy.resistance1}` : 'Sélectionner...', panelX + 55, resistY + 30);
+
+  // Résistance 2
+  ctx.fillStyle = res2Hovered ? 'rgba(51, 65, 85, 1)' : 'rgba(15, 23, 42, 0.8)';
+  ctx.beginPath();
+  ctx.roundRect(panelX + 320, resistY + 5, 240, 40, 8);
+  ctx.fill();
+  ctx.strokeStyle = res2Hovered ? '#ef4444' : '#475569';
+  ctx.lineWidth = res2Hovered ? 2 : 1;
+  ctx.stroke();
+
+  const gem2 = gemTypes[editingEnemy.resistance2];
+  ctx.fillStyle = '#f1f5f9';
+  ctx.font = '16px Arial';
+  ctx.fillText(gem2 ? `${gem2.icon} ${editingEnemy.resistance2}` : 'Sélectionner...', panelX + 335, resistY + 30);
+
+  // Dropdown résistance 1
+  if (editingField === 'resistance1-dropdown') {
+    const dropdownX = panelX + 40;
+    const dropdownY = resistY + 50;
+    const dropdownWidth = 240;
+    const allGemKeys = ['none', ...Object.keys(gemTypes).filter(k => k !== 'BASE')];
+    const itemHeight = 35;
+    const dropdownHeight = allGemKeys.length * itemHeight;
+
+    // Fond du dropdown
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(dropdownX, dropdownY, dropdownWidth, dropdownHeight, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Items
+    allGemKeys.forEach((key, index) => {
+      const itemY = dropdownY + index * itemHeight;
+      const isHovered = hoveredMenuButton === `res1-${key}`;
+
+      if (isHovered) {
+        ctx.fillStyle = 'rgba(51, 65, 85, 1)';
+        ctx.fillRect(dropdownX, itemY, dropdownWidth, itemHeight);
+      }
+
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = '14px Arial';
+      const displayText = key === 'none' ? 'Aucune' : (gemTypes[key] ? `${gemTypes[key].icon} ${key}` : key);
+      ctx.fillText(displayText, dropdownX + 10, itemY + 22);
+    });
+  }
+
+  // Dropdown résistance 2
+  if (editingField === 'resistance2-dropdown') {
+    const dropdownX = panelX + 320;
+    const dropdownY = resistY + 50;
+    const dropdownWidth = 240;
+    const allGemKeys = ['none', ...Object.keys(gemTypes).filter(k => k !== 'BASE')];
+    const itemHeight = 35;
+    const dropdownHeight = allGemKeys.length * itemHeight;
+
+    // Fond du dropdown
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(dropdownX, dropdownY, dropdownWidth, dropdownHeight, 8);
+    ctx.fill();
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Items
+    allGemKeys.forEach((key, index) => {
+      const itemY = dropdownY + index * itemHeight;
+      const isHovered = hoveredMenuButton === `res2-${key}`;
+
+      if (isHovered) {
+        ctx.fillStyle = 'rgba(51, 65, 85, 1)';
+        ctx.fillRect(dropdownX, itemY, dropdownWidth, itemHeight);
+      }
+
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = '14px Arial';
+      const displayText = key === 'none' ? 'Aucune' : (gemTypes[key] ? `${gemTypes[key].icon} ${key}` : key);
+      ctx.fillText(displayText, dropdownX + 10, itemY + 22);
+    });
+  }
+
+  // Boutons en bas
+  const buttonsY = startY + 660;
+  const saveButtonHovered = hoveredMenuButton === 'admin-save-enemy';
+  const deleteButtonHovered = hoveredMenuButton === 'admin-delete-enemy';
+
+  // Bouton Enregistrer
+  drawStyledButton(
+    ctx,
+    panelX + panelWidth - 180,
+    buttonsY,
+    160,
+    50,
+    'Enregistrer',
+    saveButtonHovered,
+    { fontSize: 'bold 16px Arial', variant: 'primary' }
+  );
+
+  // Bouton Supprimer (seulement si c'est une modification)
+  if (!isNewEnemy) {
+    drawStyledButton(
+      ctx,
+      panelX + 20,
+      buttonsY,
+      160,
+      50,
+      'Supprimer',
+      deleteButtonHovered,
+      { fontSize: 'bold 16px Arial', variant: 'danger' }
+    );
+  }
 };

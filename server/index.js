@@ -1,14 +1,25 @@
 import express from 'express';
 import cors from 'cors';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import db from './database.js';
 import './initData.js'; // Initialise les données au démarrage
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Servir les fichiers statiques du build React en production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = join(__dirname, '..', 'dist');
+  app.use(express.static(distPath));
+}
 
 // Routes API
 
@@ -232,17 +243,24 @@ app.post('/api/leaderboard', (req, res) => {
 app.get('/api/enemies', (req, res) => {
   try {
     const enemies = db.prepare('SELECT * FROM enemy_types').all();
+    const allResistances = db.prepare('SELECT * FROM enemy_resistances').all();
 
     // Transformer en objet indexé par ID
     const enemiesObject = {};
     enemies.forEach(enemy => {
+      // Récupérer les résistances de cet ennemi
+      const enemyResistances = allResistances.filter(r => r.enemy_type_id === enemy.id);
+      const resistances = enemyResistances.map(r => r.gem_type_id);
+
       enemiesObject[enemy.id] = {
         name: enemy.name,
         hp: enemy.hp,
         speed: enemy.speed,
         resistance1: enemy.resistance1,
         resistance2: enemy.resistance2,
-        emoji: enemy.emoji
+        emoji: enemy.emoji,
+        global_resistance: enemy.global_resistance || 0.1,
+        resistances: resistances  // Tableau de gem IDs
       };
     });
 
@@ -275,7 +293,8 @@ app.get('/api/waves', (req, res) => {
           speed: wave.speed,
           resistance1: wave.resistance1,
           resistance2: wave.resistance2,
-          emoji: wave.emoji
+          emoji: wave.emoji,
+          global_resistance: wave.global_resistance || 0.1
         }
       };
     });
@@ -310,7 +329,8 @@ app.get('/api/waves/:wave_number', (req, res) => {
         speed: wave.speed,
         resistance1: wave.resistance1,
         resistance2: wave.resistance2,
-        emoji: wave.emoji
+        emoji: wave.emoji,
+        global_resistance: wave.global_resistance || 0.1
       }
     });
   } catch (error) {
@@ -318,8 +338,146 @@ app.get('/api/waves/:wave_number', (req, res) => {
   }
 });
 
+// POST - Créer un nouvel ennemi
+app.post('/api/enemies', (req, res) => {
+  try {
+    const { id, name, hp, speed, resistance1, resistance2, emoji, global_resistance } = req.body;
+
+    if (!id || !name || !hp || !speed || !emoji) {
+      return res.status(400).json({ error: 'Tous les champs sont requis' });
+    }
+
+    const insert = db.prepare(`
+      INSERT INTO enemy_types (id, name, hp, speed, resistance1, resistance2, emoji, global_resistance)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    insert.run(id, name, hp, speed, resistance1 || null, resistance2 || null, emoji, global_resistance || 0.1);
+
+    const newEnemy = db.prepare('SELECT * FROM enemy_types WHERE id = ?').get(id);
+    res.status(201).json(newEnemy);
+  } catch (error) {
+    if (error.message.includes('UNIQUE constraint failed')) {
+      res.status(409).json({ error: 'Un ennemi avec cet ID existe déjà' });
+    } else {
+      res.status(500).json({ error: 'Erreur lors de la création de l\'ennemi' });
+    }
+  }
+});
+
+// PUT - Modifier un ennemi existant
+app.put('/api/enemies/:id', (req, res) => {
+  try {
+    const { name, hp, speed, resistance1, resistance2, emoji, global_resistance } = req.body;
+
+    const update = db.prepare(`
+      UPDATE enemy_types
+      SET name = ?, hp = ?, speed = ?, resistance1 = ?, resistance2 = ?, emoji = ?, global_resistance = ?
+      WHERE id = ?
+    `);
+
+    const result = update.run(name, hp, speed, resistance1 || null, resistance2 || null, emoji, global_resistance || 0.1, req.params.id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Ennemi non trouvé' });
+    }
+
+    const updatedEnemy = db.prepare('SELECT * FROM enemy_types WHERE id = ?').get(req.params.id);
+    res.json(updatedEnemy);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la modification de l\'ennemi' });
+  }
+});
+
+// DELETE - Supprimer un ennemi
+app.delete('/api/enemies/:id', (req, res) => {
+  try {
+    const deleteStmt = db.prepare('DELETE FROM enemy_types WHERE id = ?');
+    const result = deleteStmt.run(req.params.id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Ennemi non trouvé' });
+    }
+
+    res.json({ success: true, message: 'Ennemi supprimé avec succès' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la suppression de l\'ennemi' });
+  }
+});
+
+// GET - Récupérer toutes les résistances
+app.get('/api/resistances', (req, res) => {
+  try {
+    const resistances = db.prepare('SELECT * FROM enemy_resistances').all();
+    res.json(resistances);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la récupération des résistances' });
+  }
+});
+
+// GET - Récupérer les résistances d'un ennemi spécifique
+app.get('/api/resistances/:enemy_id', (req, res) => {
+  try {
+    const resistances = db.prepare('SELECT * FROM enemy_resistances WHERE enemy_type_id = ?').all(req.params.enemy_id);
+    res.json(resistances);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la récupération des résistances' });
+  }
+});
+
+// POST - Ajouter ou modifier une résistance
+app.post('/api/resistances', (req, res) => {
+  try {
+    const { enemy_type_id, gem_type_id, resistance_value } = req.body;
+
+    if (!enemy_type_id || !gem_type_id || resistance_value === undefined) {
+      return res.status(400).json({ error: 'Tous les champs sont requis' });
+    }
+
+    const insert = db.prepare(`
+      INSERT INTO enemy_resistances (enemy_type_id, gem_type_id, resistance_value)
+      VALUES (?, ?, ?)
+      ON CONFLICT(enemy_type_id, gem_type_id) DO UPDATE SET resistance_value = ?
+    `);
+
+    insert.run(enemy_type_id, gem_type_id, resistance_value, resistance_value);
+
+    const newResistance = db.prepare(
+      'SELECT * FROM enemy_resistances WHERE enemy_type_id = ? AND gem_type_id = ?'
+    ).get(enemy_type_id, gem_type_id);
+
+    res.status(201).json(newResistance);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de l\'ajout de la résistance' });
+  }
+});
+
+// DELETE - Supprimer une résistance
+app.delete('/api/resistances/:enemy_id/:gem_id', (req, res) => {
+  try {
+    const deleteStmt = db.prepare('DELETE FROM enemy_resistances WHERE enemy_type_id = ? AND gem_type_id = ?');
+    const result = deleteStmt.run(req.params.enemy_id, req.params.gem_id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Résistance non trouvée' });
+    }
+
+    res.json({ success: true, message: 'Résistance supprimée avec succès' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors de la suppression de la résistance' });
+  }
+});
+
+// En production, servir l'application React pour toutes les autres routes
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(join(__dirname, '..', 'dist', 'index.html'));
+  });
+}
+
 // Démarrer le serveur
 app.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
   console.log(`📊 API disponible sur http://localhost:${PORT}/api/gems`);
+  console.log(`🌍 Environnement: ${process.env.NODE_ENV || 'development'}`);
 });

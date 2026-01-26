@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getEnemyPosition, findTowerTarget, createProjectile } from '../services/combatSystem';
+import { EFFECT_CONFIG } from '../config/constants';
 
 /**
  * Hook personnalisé pour gérer la boucle de jeu principale
@@ -105,25 +106,165 @@ export const useGameLoop = ({
           }
 
           const speed = 250;
-          const moveX = (dx / dist) * speed * adjustedDeltaTime;
-          const moveY = (dy / dist) * speed * adjustedDeltaTime;
+          let moveX = (dx / dist) * speed * adjustedDeltaTime;
+          let moveY = (dy / dist) * speed * adjustedDeltaTime;
+
+          // RAPID - Appliquer l'angle de dispersion
+          if (proj.spreadAngle !== undefined) {
+            const angleRad = (proj.spreadAngle * Math.PI) / 180;
+            const cos = Math.cos(angleRad);
+            const sin = Math.sin(angleRad);
+            const rotatedX = moveX * cos - moveY * sin;
+            const rotatedY = moveX * sin + moveY * cos;
+            moveX = rotatedX;
+            moveY = rotatedY;
+          }
+
           return { ...proj, x: proj.x + moveX, y: proj.y + moveY };
         }).filter(Boolean);
 
         if (damageToApply.length > 0) {
           setEnemies(currentEnemies => {
-            return currentEnemies.map(e => {
-              const damage = damageToApply.find(d => d.enemyId === e.id);
-              if (damage) {
-                const isResistant = e.resistances && e.resistances.includes(damage.towerType);
-                const actualDamage = isResistant ? damage.damage * 0.5 : damage.damage;
-                const newHealth = e.health - actualDamage;
+            // Détecter les ennemis touchés par AOE et CHAIN
+            const aoeTargets = [];
+            damageToApply.forEach(damage => {
+              const effects = damage.effect.split(',');
 
+              // AOE - Dégâts de zone
+              if (effects.includes('aoe')) {
+                const aoeConfig = EFFECT_CONFIG.aoe;
+                const primaryTarget = currentEnemies.find(e => e.id === damage.enemyId);
+                if (primaryTarget) {
+                  const primaryPos = getEnemyPosition(primaryTarget, currentPath);
+                  if (primaryPos) {
+                    currentEnemies.forEach(e => {
+                      if (e.id !== damage.enemyId) {
+                        const ePos = getEnemyPosition(e, currentPath);
+                        if (ePos) {
+                          const dx = ePos.x - primaryPos.x;
+                          const dy = ePos.y - primaryPos.y;
+                          const dist = Math.sqrt(dx * dx + dy * dy);
+                          if (dist <= aoeConfig.radius) {
+                            aoeTargets.push({
+                              enemyId: e.id,
+                              damage: damage.damage * aoeConfig.damageMultiplier,
+                              effect: 'none',
+                              towerType: damage.towerType
+                            });
+                          }
+                        }
+                      }
+                    });
+                  }
+                }
+              }
+
+              // CHAIN - Propagation avec rebonds
+              if (effects.includes('chain')) {
+                const chainConfig = EFFECT_CONFIG.chain;
+                const hitEnemies = new Set([damage.enemyId]);
+                let currentTarget = currentEnemies.find(e => e.id === damage.enemyId);
+                let currentDamage = damage.damage;
+
+                for (let chain = 0; chain < chainConfig.maxChains; chain++) {
+                  if (!currentTarget) break;
+
+                  const currentPos = getEnemyPosition(currentTarget, currentPath);
+                  if (!currentPos) break;
+
+                  // Trouver l'ennemi le plus proche non touché dans le rayon
+                  let nextTarget = null;
+                  let minDist = Infinity;
+
+                  currentEnemies.forEach(e => {
+                    if (!hitEnemies.has(e.id)) {
+                      const ePos = getEnemyPosition(e, currentPath);
+                      if (ePos) {
+                        const dx = ePos.x - currentPos.x;
+                        const dy = ePos.y - currentPos.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist <= chainConfig.chainRange && dist < minDist) {
+                          minDist = dist;
+                          nextTarget = e;
+                        }
+                      }
+                    }
+                  });
+
+                  if (nextTarget) {
+                    currentDamage *= (1 - chainConfig.damageReduction);
+                    hitEnemies.add(nextTarget.id);
+                    aoeTargets.push({
+                      enemyId: nextTarget.id,
+                      damage: currentDamage,
+                      effect: 'none',
+                      towerType: damage.towerType
+                    });
+                    currentTarget = nextTarget;
+                  } else {
+                    break;
+                  }
+                }
+              }
+            });
+
+            // Combiner les dégâts principaux et AOE
+            const allDamage = [...damageToApply, ...aoeTargets];
+
+            return currentEnemies.map(e => {
+              const damage = allDamage.find(d => d.enemyId === e.id);
+              if (damage) {
                 const effects = damage.effect.split(',');
+                const hasMagic = effects.includes('magic');
+                const hasCrit = effects.includes('crit');
+                const isResistant = e.resistances && e.resistances.includes(damage.towerType);
+
+                // CRIT - Test de coup critique
+                let isCriticalHit = false;
+                if (hasCrit) {
+                  const critConfig = EFFECT_CONFIG.crit;
+                  isCriticalHit = Math.random() < critConfig.critChance;
+                }
+
+                // Si l'effet MAGIC est présent, réduire l'efficacité de la résistance
+                let actualDamage = damage.damage;
+
+                // Appliquer le critique avant les résistances
+                if (isCriticalHit) {
+                  const critConfig = EFFECT_CONFIG.crit;
+                  actualDamage *= critConfig.critMultiplier;
+                }
+
+                // Nouveau système de résistance:
+                // - Résistance globale (défaut 10%)
+                // - +20% si résistant à l'élément
+                const globalResistance = e.global_resistance || 0.1;
+                const elementalResistance = isResistant ? 0.2 : 0;
+                let totalResistance = globalResistance + elementalResistance;
+
+                // MAGIC réduit la résistance élémentaire uniquement
+                if (hasMagic && isResistant) {
+                  const magicConfig = EFFECT_CONFIG.magic;
+                  totalResistance = globalResistance + (elementalResistance * (1 - magicConfig.resistancePenetration));
+                }
+
+                actualDamage = actualDamage * (1 - totalResistance);
+
+                const newHealth = e.health - actualDamage;
                 effects.forEach(eff => {
-                  if (eff === 'slow') e.effects.slow = 2;
-                  else if (eff === 'poison') e.effects.poison = 3;
-                  else if (eff === 'stun') e.effects.stun = 1;
+                  const config = EFFECT_CONFIG[eff];
+                  if (!config) return;
+
+                  if (eff === 'slow' && config.duration) {
+                    e.effects.slow = config.duration;
+                  } else if (eff === 'poison' && config.duration) {
+                    e.effects.poison = config.duration;
+                  } else if (eff === 'stun' && config.duration) {
+                    e.effects.stun = config.duration;
+                  } else if (eff === 'damage' && config.duration) {
+                    e.effects.damage = config.duration;
+                    e.effects.damagePerTick = damage.damage * config.damageMultiplier;
+                  }
                 });
 
                 if (newHealth <= 0) {
@@ -147,11 +288,36 @@ export const useGameLoop = ({
         if (!towerAttackTimers.current[timerId]) towerAttackTimers.current[timerId] = 0;
         towerAttackTimers.current[timerId] += adjustedDeltaTime * 1000;
 
-        if (towerAttackTimers.current[timerId] >= tower.speed) {
+        // FAST - Réduire le temps d'attaque (augmenter la cadence)
+        let effectiveSpeed = tower.speed;
+        const effects = tower.effect.split(',');
+        if (effects.includes('fast')) {
+          const fastConfig = EFFECT_CONFIG.fast;
+          effectiveSpeed = tower.speed * (1 - fastConfig.speedBonus);
+        }
+
+        if (towerAttackTimers.current[timerId] >= effectiveSpeed) {
           towerAttackTimers.current[timerId] = 0;
           const closestEnemy = findTowerTarget(tower, enemies, currentPath);
           if (closestEnemy) {
-            setProjectiles(prev => [...prev, createProjectile(tower, closestEnemy)]);
+            // RAPID - Créer plusieurs projectiles
+            if (effects.includes('rapid')) {
+              const rapidConfig = EFFECT_CONFIG.rapid;
+              const projectiles = [];
+              const angleStep = rapidConfig.spreadAngle;
+              const startAngle = -(rapidConfig.projectileCount - 1) * angleStep / 2;
+
+              for (let i = 0; i < rapidConfig.projectileCount; i++) {
+                const angle = startAngle + i * angleStep;
+                const proj = createProjectile(tower, closestEnemy);
+                // Ajouter un angle de dispersion au projectile
+                proj.spreadAngle = angle;
+                projectiles.push(proj);
+              }
+              setProjectiles(prev => [...prev, ...projectiles]);
+            } else {
+              setProjectiles(prev => [...prev, createProjectile(tower, closestEnemy)]);
+            }
           }
         }
       });

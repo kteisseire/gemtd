@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, TOOLBAR_HEIGHT, GRID_SIZE, COLS, ROWS, isInSpawnZone, isInGoalZone, isInCheckpointZone } from '../config/constants';
 import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons } from '../renderers';
 import { isoToGrid } from '../renderers/canvasUtils';
+import { getEnemyPosition } from '../services/combatSystem';
 
 /**
  * Hook personnalisé pour gérer les événements de souris
@@ -11,12 +12,12 @@ export const useMouseHandlers = (deps) => {
   const {
     canvasRef, getZoom, camera, isDragging, dragStart,
     // States
-    gameState, contextMenu, adminPage, pseudo, gemTypes, editingGem, fusionRecipes,
+    gameState, contextMenu, adminPage, pseudo, gemTypes, editingGem, fusionRecipes, enemyTypes, editingEnemy, editingField,
     lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower,
-    selectedTowerToDelete, towers, enemies,
+    selectedTowerToDelete, towers, enemies, currentPath,
     // Setters
     setMousePos, setCamera, clampCamera, setHoveredButton, setHoveredMenuButton,
-    setHoveredCell, setHoveredTower, setIsDragging, setDragStart,
+    setHoveredCell, setHoveredTower, setHoveredEnemy, setIsDragging, setDragStart,
     // Functions
     checkFusionPossible, goToMenuFull, setGameState, setGameSpeed, zoomIn,
     zoomOut, resetCamera, deleteTower, startWave, resetGameFull
@@ -85,7 +86,7 @@ export const useMouseHandlers = (deps) => {
 
     // Admin hover
     if (adminPage) {
-      const adminButtons = getAdminButtons(adminPage, gemTypes, editingGem, fusionRecipes);
+      const adminButtons = getAdminButtons(adminPage, gemTypes, editingGem, fusionRecipes, enemyTypes, editingEnemy, editingField);
       let found = null;
       for (const btn of adminButtons) {
         if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
@@ -115,6 +116,7 @@ export const useMouseHandlers = (deps) => {
       setHoveredButton(found);
       setHoveredTower(null);
       setHoveredCell(null);
+      setHoveredEnemy(null);
       return;
     }
 
@@ -138,11 +140,30 @@ export const useMouseHandlers = (deps) => {
       setHoveredCell(null);
       setHoveredTower(null);
     }
+
+    // Détection d'ennemi survolé
+    let foundEnemy = null;
+    if (gameState === 'wave' && enemies && enemies.length > 0) {
+      const clickRadius = 25; // Rayon de détection en pixels
+      for (const enemy of enemies) {
+        const pos = getEnemyPosition(enemy, deps.currentPath);
+        if (pos) {
+          const screenX = pos.x * zoom + camera.x;
+          const screenY = (pos.y + TOOLBAR_HEIGHT) * zoom + camera.y;
+          const distance = Math.sqrt(Math.pow(x - screenX, 2) + Math.pow(y - screenY, 2));
+          if (distance < clickRadius) {
+            foundEnemy = enemy;
+            break;
+          }
+        }
+      }
+    }
+    setHoveredEnemy(foundEnemy);
   }, [canvasRef, getZoom, camera, isDragging, dragStart, gameState, contextMenu, adminPage, pseudo, gemTypes,
-    editingGem, fusionRecipes, lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower,
-    selectedTowerToDelete, towers, enemies, setMousePos, setCamera, clampCamera, setHoveredButton,
-    setHoveredMenuButton, setHoveredCell, setHoveredTower, checkFusionPossible, goToMenuFull, setGameState,
-    setGameSpeed, zoomIn, zoomOut, resetCamera, deleteTower, startWave, resetGameFull]);
+    editingGem, fusionRecipes, enemyTypes, editingEnemy, editingField, lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower,
+    selectedTowerToDelete, towers, enemies, currentPath, setMousePos, setCamera, clampCamera, setHoveredButton,
+    setHoveredMenuButton, setHoveredCell, setHoveredTower, setHoveredEnemy, checkFusionPossible, goToMenuFull, setGameState,
+    setGameSpeed, zoomIn, zoomOut, resetCamera, deleteTower, startWave, resetGameFull, deps]);
 
   const handleMouseDown = useCallback((e) => {
     if (e.button === 1 || e.button === 2) {

@@ -1,4 +1,5 @@
 import { gridToIso } from '../renderers/canvasUtils';
+import { EFFECT_CONFIG } from '../config/constants';
 
 // Calculer la position d'un ennemi sur le chemin (en coordonnées isométriques)
 export const getEnemyPosition = (enemy, currentPath) => {
@@ -25,21 +26,34 @@ export const updateEnemyMovement = (enemy, adjustedDeltaTime, currentPath) => {
   let newPathIndex = enemy.pathIndex;
   const newEffects = { ...enemy.effects };
 
+  // STUN - Bloque le mouvement
   if (newEffects.stun > 0) {
     newEffects.stun -= adjustedDeltaTime;
   } else {
     let movement = enemy.speed * adjustedDeltaTime;
+    // SLOW - Réduit la vitesse selon la config
     if (newEffects.slow > 0) {
-      movement = (enemy.speed * 0.5) * adjustedDeltaTime;
+      const slowConfig = EFFECT_CONFIG.slow;
+      movement = (enemy.speed * (1 - slowConfig.speedReduction)) * adjustedDeltaTime;
       newEffects.slow -= adjustedDeltaTime;
     }
     newPathIndex = enemy.pathIndex + movement;
   }
 
   let newHealth = enemy.health;
+
+  // POISON - Dégâts fixes par seconde
   if (newEffects.poison > 0) {
-    newHealth -= 3 * adjustedDeltaTime;
+    const poisonConfig = EFFECT_CONFIG.poison;
+    newHealth -= poisonConfig.dps * adjustedDeltaTime;
     newEffects.poison -= adjustedDeltaTime;
+  }
+
+  // DAMAGE (Brûlure) - Dégâts basés sur les dégâts initiaux
+  if (newEffects.damage > 0) {
+    const damagePerSecond = newEffects.damagePerTick || 0;
+    newHealth -= damagePerSecond * adjustedDeltaTime;
+    newEffects.damage -= adjustedDeltaTime;
   }
 
   // Verifier si l'ennemi a atteint la fin
@@ -98,16 +112,68 @@ export const updateProjectile = (proj, enemies, adjustedDeltaTime, currentPath) 
 
 // Appliquer les degats a un ennemi
 export const applyDamageToEnemy = (enemy, damageInfo) => {
+  const effects = damageInfo.effect.split(',');
+  const hasMagic = effects.includes('magic');
+  const hasCrit = effects.includes('crit');
   const isResistant = enemy.resistances && enemy.resistances.includes(damageInfo.towerType);
-  const actualDamage = isResistant ? damageInfo.damage * 0.5 : damageInfo.damage;
+
+  // CRIT - Test de coup critique
+  let isCriticalHit = false;
+  if (hasCrit) {
+    const critConfig = EFFECT_CONFIG.crit;
+    isCriticalHit = Math.random() < critConfig.critChance;
+  }
+
+  // Si l'effet MAGIC est présent, réduire l'efficacité de la résistance
+  let actualDamage = damageInfo.damage;
+
+  // Appliquer le critique avant les résistances
+  if (isCriticalHit) {
+    const critConfig = EFFECT_CONFIG.crit;
+    actualDamage *= critConfig.critMultiplier;
+  }
+
+  // Nouveau système de résistance:
+  // - Résistance globale (défaut 10%)
+  // - +20% si résistant à l'élément
+  const globalResistance = enemy.global_resistance || 0.1;
+  const elementalResistance = isResistant ? 0.2 : 0;
+  let totalResistance = globalResistance + elementalResistance;
+
+  // MAGIC réduit la résistance élémentaire uniquement
+  if (hasMagic && isResistant) {
+    const magicConfig = EFFECT_CONFIG.magic;
+    totalResistance = globalResistance + (elementalResistance * (1 - magicConfig.resistancePenetration));
+  }
+
+  actualDamage = actualDamage * (1 - totalResistance);
+
   const newHealth = enemy.health - actualDamage;
 
   const newEffects = { ...enemy.effects };
-  const effects = damageInfo.effect.split(',');
+
   effects.forEach(eff => {
-    if (eff === 'slow') newEffects.slow = 2;
-    else if (eff === 'poison') newEffects.poison = 3;
-    else if (eff === 'stun') newEffects.stun = 1;
+    const config = EFFECT_CONFIG[eff];
+    if (!config) return;
+
+    // SLOW - Ralentissement
+    if (eff === 'slow' && config.duration) {
+      newEffects.slow = config.duration;
+    }
+    // POISON - Dégâts fixes sur la durée
+    else if (eff === 'poison' && config.duration) {
+      newEffects.poison = config.duration;
+    }
+    // STUN - Étourdissement
+    else if (eff === 'stun' && config.duration) {
+      newEffects.stun = config.duration;
+    }
+    // DAMAGE (Brûlure) - Dégâts basés sur les dégâts de la gemme
+    else if (eff === 'damage' && config.duration) {
+      newEffects.damage = config.duration;
+      // Stocker les dégâts par tick (30% des dégâts initiaux par seconde)
+      newEffects.damagePerTick = damageInfo.damage * config.damageMultiplier;
+    }
   });
 
   if (newHealth <= 0) {

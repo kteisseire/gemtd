@@ -2,16 +2,18 @@ import { useCallback } from 'react';
 
 /**
  * Hook personnalisé pour gérer les événements de l'interface admin
- * Regroupe tous les gestionnaires d'événements liés à l'édition des gemmes
+ * Regroupe tous les gestionnaires d'événements liés à l'édition des gemmes et ennemis
  *
  * @param {Object} params - Paramètres du hook
  * @param {Function} params.setEditingGem - Fonction pour modifier la gemme en édition
+ * @param {Function} params.setEditingEnemy - Fonction pour modifier l'ennemi en édition
  * @param {Function} params.setShowColorPicker - Fonction pour afficher/masquer le color picker
  * @param {Function} params.setShowEmojiSelector - Fonction pour afficher/masquer le sélecteur d'emoji
  * @returns {Object} Gestionnaires d'événements
  */
 export const useAdminHandlers = ({
   setEditingGem,
+  setEditingEnemy,
   setShowColorPicker,
   setShowEmojiSelector
 }) => {
@@ -41,11 +43,15 @@ export const useAdminHandlers = ({
     });
   }, [setEditingGem]);
 
-  // Handler pour le sélecteur d'emojis
-  const handleEmojiClick = useCallback((emojiData) => {
-    setEditingGem(prev => ({ ...prev, icon: emojiData.emoji }));
+  // Handler pour le sélecteur d'emojis (gemmes et ennemis)
+  const handleEmojiClick = useCallback((emojiData, isEnemy = false) => {
+    if (isEnemy) {
+      setEditingEnemy(prev => ({ ...prev, emoji: emojiData.emoji }));
+    } else {
+      setEditingGem(prev => ({ ...prev, icon: emojiData.emoji }));
+    }
     setShowEmojiSelector(false);
-  }, [setEditingGem, setShowEmojiSelector]);
+  }, [setEditingGem, setEditingEnemy, setShowEmojiSelector]);
 
   return {
     handleColorChange,

@@ -193,3 +193,66 @@ export const drawToolbarTooltip = (ctx, deps) => {
   ctx.textBaseline = 'middle';
   ctx.fillText(button.tooltip, tooltipX + tooltipWidth / 2, tooltipY + tooltipHeight / 2);
 };
+
+// Dessiner le tooltip d'un ennemi
+export const drawEnemyTooltip = (ctx, deps) => {
+  const { hoveredEnemy, mousePos, gemTypes } = deps;
+  if (!hoveredEnemy) return;
+
+  const tooltipWidth = 220;
+  const tooltipHeight = 120;
+
+  let tooltipX = mousePos.x + 15;
+  let tooltipY = mousePos.y + 15;
+
+  if (tooltipX + tooltipWidth > CANVAS_WIDTH) tooltipX = mousePos.x - tooltipWidth - 10;
+  if (tooltipY + tooltipHeight > CANVAS_HEIGHT) tooltipY = mousePos.y - tooltipHeight - 10;
+
+  // Fond du tooltip
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+  ctx.beginPath();
+  ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 8);
+  ctx.fill();
+
+  // Bordure
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Emoji et nom
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fillText(`${hoveredEnemy.emoji} Ennemi`, tooltipX + 10, tooltipY + 10);
+
+  // HP
+  ctx.font = '14px Arial';
+  ctx.fillStyle = '#22c55e';
+  ctx.fillText(`❤️ HP: ${Math.ceil(hoveredEnemy.health)} / ${hoveredEnemy.maxHealth}`, tooltipX + 10, tooltipY + 38);
+
+  // Vitesse
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillText(`⚡ Vitesse: ${hoveredEnemy.speed.toFixed(2)}`, tooltipX + 10, tooltipY + 58);
+
+  // Récompense
+  ctx.fillStyle = '#eab308';
+  ctx.fillText(`💰 Récompense: ${hoveredEnemy.reward}`, tooltipX + 10, tooltipY + 78);
+
+  // Résistances
+  if (hoveredEnemy.resistances && hoveredEnemy.resistances.length > 0 && gemTypes) {
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillText('🛡️ Résistances:', tooltipX + 10, tooltipY + 98);
+
+    const resistanceText = hoveredEnemy.resistances
+      .map(res => {
+        const gemType = gemTypes[res];
+        return gemType ? `${gemType.icon} ${gemType.name}` : res;
+      })
+      .join(', ');
+
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#a855f7';
+    ctx.fillText(resistanceText, tooltipX + 15, tooltipY + 115);
+  }
+};

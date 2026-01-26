@@ -219,3 +219,27 @@ export const drawIsoGrid = (ctx) => {
     }
   }
 };
+
+// Dessiner la surbrillance d'une case isométrique (contour brillant)
+export const drawIsoTileHighlight = (ctx, gridX, gridY) => {
+  const { isoX, isoY } = gridToIso(gridX, gridY);
+
+  ctx.save();
+
+  
+
+  // Contour blanc épais
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+
+  // Dessiner le losange de la tuile
+  ctx.beginPath();
+  ctx.moveTo(isoX, isoY);
+  ctx.lineTo(isoX + ISO_TILE_WIDTH / 2, isoY + ISO_TILE_HEIGHT / 2);
+  ctx.lineTo(isoX, isoY + ISO_TILE_HEIGHT);
+  ctx.lineTo(isoX - ISO_TILE_WIDTH / 2, isoY + ISO_TILE_HEIGHT / 2);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.restore();
+};

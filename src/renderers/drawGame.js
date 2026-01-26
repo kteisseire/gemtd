@@ -1,6 +1,6 @@
 import { GRID_SIZE, SPAWN_POINT, GOAL_POINT, CHECKPOINTS, ISO_TILE_WIDTH } from '../config/constants';
 import { getEnemyPosition } from '../services/combatSystem';
-import { gridToIso, drawIsoTile3D, drawIsoTile, drawIsoEllipse } from './canvasUtils';
+import { gridToIso, drawIsoTile3D, drawIsoTile, drawIsoEllipse, drawIsoTileHighlight } from './canvasUtils';
 
 // Dessiner le chemin
 export const drawPath = (ctx, currentPath, zoom) => {
@@ -204,14 +204,73 @@ export const drawCheckpoints = (ctx, checkpointImages, zoom) => {
   });
 };
 
+// Fonction helper pour vérifier si une tour est derrière un checkpoint (cachée)
+const isTowerBehindCheckpoint = (tower) => {
+  const checkpoints = [
+    { x: 10, y: 15 }, { x: 10, y: 27 }, { x: 35, y: 27 }, { x: 35, y: 15 }, { x: 22, y: 15 }
+  ];
+
+  for (const cp of checkpoints) {
+    // Ne pas compter les tours à l'intérieur du checkpoint
+    if (tower.gridX >= cp.x && tower.gridX < cp.x + 2 &&
+        tower.gridY >= cp.y && tower.gridY < cp.y + 2) {
+      return false;
+    }
+
+    // Checkpoint 2x2: de (cp.x, cp.y) à (cp.x+1, cp.y+1)
+    // Les 3 cases haut-gauche (par rapport au coin supérieur gauche):
+    // - (cp.x-1, cp.y-1) - diagonale haut-gauche
+    // - (cp.x-1, cp.y)   - gauche
+    // - (cp.x, cp.y-1)   - haut
+
+    const topLeftPositions = [
+      { x: cp.x - 1, y: cp.y - 1 }, // diagonale haut-gauche
+      { x: cp.x - 1, y: cp.y },     // gauche
+      { x: cp.x - 1, y: cp.y +1},     // gauche
+      { x: cp.x, y: cp.y - 1 }      // haut
+    ];
+
+    // Les 3 cases haut-droite (par rapport au coin supérieur droit cp.x+1, cp.y):
+    // - (cp.x+2, cp.y-1) - diagonale haut-droite
+    // - (cp.x+2, cp.y)   - droite
+    // - (cp.x+1, cp.y-1) - haut
+
+    const topRightPositions = [
+      { x: cp.x + 1, y: cp.y - 1 }  // haut
+    ];
+
+    // Vérifier si la tour est dans une des positions haut-gauche
+    for (const pos of topLeftPositions) {
+      if (tower.gridX === pos.x && tower.gridY === pos.y) {
+        return true;
+      }
+    }
+
+    // Vérifier si la tour est dans une des positions haut-droite
+    for (const pos of topRightPositions) {
+      if (tower.gridX === pos.x && tower.gridY === pos.y) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
 // Dessiner les tours
 export const drawTowers = (ctx, towers, deps) => {
-  const { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom, gemImages } = deps;
+  const { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom, gemImages, checkpoints, behind } = deps;
   const fusionPulse = Math.sin(Date.now() / 600) * 0.5 + 0.5;
 
   towers.forEach(tower => {
     // Convertir la position de la tour en isométrique
     const { isoX, isoY } = gridToIso(tower.gridX + 0.5, tower.gridY + 0.5);
+
+    // Filtrage pour le z-ordering
+    if (checkpoints !== undefined) {
+      const isBehind = isTowerBehindCheckpoint(tower);
+      if (behind && !isBehind) return; // Ne dessiner que celles derrière
+      if (!behind && isBehind) return; // Ne dessiner que celles devant
+    }
 
     if (gameState === 'preparation' && checkFusionPossible && checkFusionPossible(tower)) {
       ctx.globalAlpha = 0.5 + fusionPulse * 0.3;
@@ -245,6 +304,9 @@ export const drawTowers = (ctx, towers, deps) => {
       ctx.stroke();
     }
 
+    // Vérifier si la gemme est derrière un checkpoint
+    const isBehind = checkpoints !== undefined && isTowerBehindCheckpoint(tower);
+
     // Dessiner l'image de la gemme si disponible, sinon fallback sur emoji
     const gemImage = gemImages && gemImages[tower.type];
     if (gemImage) {
@@ -252,7 +314,11 @@ export const drawTowers = (ctx, towers, deps) => {
       const isFusedGem = !tower.is_droppable && !tower.is_base;
       const baseSize = 48;
       const gemSize = isFusedGem ? baseSize * 1.4 : baseSize;
+
+      // Appliquer une légère transparence si derrière
+      if (isBehind) ctx.globalAlpha = 0.85;
       ctx.drawImage(gemImage, isoX - gemSize / 2, isoY - gemSize / 2, gemSize, gemSize);
+      if (isBehind) ctx.globalAlpha = 1;
     } else {
       // Fallback: dessiner un cercle coloré avec l'emoji
       ctx.fillStyle = tower.color;
@@ -269,11 +335,18 @@ export const drawTowers = (ctx, towers, deps) => {
 
 // Dessiner les tours temporaires
 export const drawTempTowers = (ctx, tempTowers, deps) => {
-  const { hoveredTower, selectedTempTower, zoom, gemImages } = deps;
+  const { hoveredTower, selectedTempTower, zoom, gemImages, checkpoints, behind } = deps;
 
   tempTowers.forEach(tower => {
     // Convertir la position de la tour en isométrique
     const { isoX, isoY } = gridToIso(tower.gridX + 0.5, tower.gridY + 0.5);
+
+    // Filtrage pour le z-ordering
+    if (checkpoints !== undefined) {
+      const isBehind = isTowerBehindCheckpoint(tower);
+      if (behind && !isBehind) return; // Ne dessiner que celles derrière
+      if (!behind && isBehind) return; // Ne dessiner que celles devant
+    }
 
     if (hoveredTower === tower.id && tower.type !== 'BASE') {
       ctx.globalAlpha = 0.15;
@@ -291,7 +364,10 @@ export const drawTempTowers = (ctx, tempTowers, deps) => {
       ctx.stroke();
     }
 
-    ctx.globalAlpha = 0.8;
+    // Vérifier si la gemme est derrière un checkpoint
+    const isBehind = checkpoints !== undefined && isTowerBehindCheckpoint(tower);
+
+    ctx.globalAlpha = isBehind ? 0.7 : 0.8;
 
     // Dessiner l'image de la gemme si disponible, sinon fallback sur emoji
     const gemImage = gemImages && gemImages[tower.type];
@@ -318,24 +394,59 @@ export const drawTempTowers = (ctx, tempTowers, deps) => {
 };
 
 // Dessiner les ennemis
-export const drawEnemies = (ctx, enemies, currentPath, zoom) => {
+export const drawEnemies = (ctx, enemies, currentPath, zoom, gemTypes) => {
   enemies.forEach(enemy => {
     const pos = getEnemyPosition(enemy, currentPath);
     if (!pos) return;
 
     const healthPercent = enemy.health / enemy.maxHealth;
-    const barWidth = 30;
-    const barHeight = 4;
+    const barWidth = 40;
+    const barHeight = 5;
 
+    // Barre de vie avec bordure
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pos.x - barWidth / 2, pos.y - 28, barWidth, barHeight);
     ctx.fillStyle = '#374151';
-    ctx.fillRect(pos.x - barWidth / 2, pos.y - 25, barWidth, barHeight);
+    ctx.fillRect(pos.x - barWidth / 2, pos.y - 28, barWidth, barHeight);
     ctx.fillStyle = healthPercent > 0.5 ? '#22c55e' : healthPercent > 0.25 ? '#eab308' : '#ef4444';
-    ctx.fillRect(pos.x - barWidth / 2, pos.y - 25, barWidth * healthPercent, barHeight);
+    ctx.fillRect(pos.x - barWidth / 2, pos.y - 28, barWidth * healthPercent, barHeight);
 
-    ctx.font = `${Math.max(18, 24 / zoom)}px Arial`;
+    // Texte HP (health / maxHealth)
+    ctx.font = `bold ${Math.max(8, 10 / zoom)}px Arial`;
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    const hpText = `${Math.ceil(enemy.health)}/${enemy.maxHealth}`;
+    ctx.strokeText(hpText, pos.x, pos.y - 35);
+    ctx.fillText(hpText, pos.x, pos.y - 35);
+
+    // Emoji de l'ennemi
+    ctx.font = `${Math.max(18, 24 / zoom)}px Arial`;
     ctx.fillText(enemy.emoji, pos.x, pos.y);
+
+    // Icônes de résistances sous l'ennemi
+    if (enemy.resistances && enemy.resistances.length > 0 && gemTypes) {
+      const iconSize = Math.max(10, 12 / zoom);
+      const spacing = iconSize + 2;
+      const totalWidth = enemy.resistances.length * spacing - 2;
+      const startX = pos.x - totalWidth / 2;
+
+      ctx.font = `${iconSize}px Arial`;
+      enemy.resistances.forEach((resistance, index) => {
+        const gemType = gemTypes[resistance];
+        if (gemType && gemType.icon) {
+          const x = startX + index * spacing;
+          // Fond semi-transparent pour les icônes
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          ctx.fillRect(x - iconSize / 2, pos.y + 12, iconSize, iconSize);
+          // Icône de la résistance
+          ctx.fillText(gemType.icon, x, pos.y + 12 + iconSize / 2);
+        }
+      });
+    }
   });
 };
 
@@ -380,4 +491,15 @@ export const drawPlacementPreview = (ctx, hoveredCell, deps) => {
     // Fallback: dessiner la tuile de preview en isométrique avec transparence
     drawIsoTile3D(ctx, hoveredCell.x, hoveredCell.y, '#22c55e', 0.3);
   }
+};
+
+// Dessiner les surbrillances des gemmes derrière les checkpoints
+export const drawTowerHighlights = (ctx, towers, tempTowers) => {
+  const allTowers = [...towers, ...tempTowers];
+
+  allTowers.forEach(tower => {
+    if (isTowerBehindCheckpoint(tower)) {
+      drawIsoTileHighlight(ctx, tower.gridX, tower.gridY);
+    }
+  });
 };

@@ -34,8 +34,8 @@ import {  clearCanvas, createGrassCache, drawGrassBackground, drawIsoGrid,
   drawMainMenu,
   drawAdminPage,
   drawPath, drawSpawnPortal, drawGoal, drawCheckpoints,
-  drawTowers, drawTempTowers, drawEnemies, drawProjectiles, drawPlacementPreview,
-  drawErrorOverlay, drawGameOverOverlay, getGameOverButtons, drawTowerTooltip, drawToolbarTooltip,
+  drawTowers, drawTempTowers, drawEnemies, drawProjectiles, drawPlacementPreview, drawTowerHighlights,
+  drawErrorOverlay, drawGameOverOverlay, getGameOverButtons, drawTowerTooltip, drawToolbarTooltip, drawEnemyTooltip,
   drawContextMenu
 
 } from './renderers';
@@ -47,13 +47,13 @@ const TowerDefense = () => {
   const { pseudo, bestScore, lastScore, updatePseudo, saveScore } = useLocalStorage();
   const { logoImage, grassImage, portailImage, arriveeImage, gemholderImage, checkpointImages, gemImages, grassCanvasRef, loadGemImages } = useImages();
   const { camera, setCamera, isDragging, setIsDragging, dragStart, setDragStart, getZoom, clampCamera, zoomIn, zoomOut, resetCamera } = useCamera();
-  const { hoveredTower, setHoveredTower, hoveredCell, setHoveredCell, hoveredButton, setHoveredButton, hoveredMenuButton, setHoveredMenuButton, mousePos, setMousePos, contextMenu, setContextMenu } = useUI();
+  const { hoveredTower, setHoveredTower, hoveredCell, setHoveredCell, hoveredButton, setHoveredButton, hoveredMenuButton, setHoveredMenuButton, hoveredEnemy, setHoveredEnemy, mousePos, setMousePos, contextMenu, setContextMenu } = useUI();
   const { enemies, setEnemies, projectiles, setProjectiles } = useEnemies();
   const { towers, setTowers, tempTowers, setTempTowers, selectedTowerToDelete, setSelectedTowerToDelete, selectedTempTower, setSelectedTempTower, deleteTower, clearTempTowers } = useTowers();
-  const { adminPage, setAdminPage, editingGem, setEditingGem, adminMessage, setAdminMessage, editingRecipe, setEditingRecipe, showColorPicker, setShowColorPicker, colorPickerPosition, setColorPickerPosition, showEffectSelector, setShowEffectSelector, showEmojiSelector, setShowEmojiSelector, showRecipeEditor, setShowRecipeEditor, editingField, setEditingField, fieldInputValue, setFieldInputValue, fieldInputPosition, setFieldInputPosition } = useAdmin();
+  const { adminPage, setAdminPage, editingGem, setEditingGem, editingEnemy, setEditingEnemy, adminMessage, setAdminMessage, editingRecipe, setEditingRecipe, showColorPicker, setShowColorPicker, colorPickerPosition, setColorPickerPosition, showEffectSelector, setShowEffectSelector, showEmojiSelector, setShowEmojiSelector, showRecipeEditor, setShowRecipeEditor, editingField, setEditingField, fieldInputValue, setFieldInputValue, fieldInputPosition, setFieldInputPosition } = useAdmin();
   const { gameState, setGameState, lives, setLives, wave, setWave, score, setScore, placementCount, setPlacementCount, gameSpeed, setGameSpeed, errorMessage, setErrorMessage, resetGame, goToMenu } = useGameState();
-  const { handleColorChange, handleEffectToggle, handleEmojiClick } = useAdminHandlers({ setEditingGem, setShowColorPicker, setShowEmojiSelector });
-  const { gemTypes, setGemTypes, fusionRecipes, setFusionRecipes, leaderboard, setLeaderboard } = useGameData();
+  const { handleColorChange, handleEffectToggle, handleEmojiClick } = useAdminHandlers({ setEditingGem, setEditingEnemy, setShowColorPicker, setShowEmojiSelector });
+  const { gemTypes, setGemTypes, fusionRecipes, setFusionRecipes, enemyTypes, setEnemyTypes, leaderboard, setLeaderboard } = useGameData();
   const { checkFusionPossible, performFusion } = useFusion({ towers, setTowers, fusionRecipes, gemTypes });
 
   // Other state
@@ -70,6 +70,7 @@ const TowerDefense = () => {
   // Spawn wave
   const spawnWave = useCallback(() => {
     const waveData = wavesData ? wavesData[wave] : null;
+    console.log('Spawn wave:', wave, 'waveData:', waveData);
     const { enemies: newEnemies, newPreviousWaveHealth } = createWaveEnemies(wave, gemTypes, previousWaveHealth, enemyIdCounter, waveData);
     setPreviousWaveHealth(newPreviousWaveHealth);
     setEnemies(newEnemies);
@@ -264,6 +265,7 @@ const TowerDefense = () => {
   useEffect(() => {
     fetchWaves()
       .then(waves => {
+        console.log('Vagues chargées:', waves);
         setWavesData(waves);
       })
       .catch(err => {
@@ -274,10 +276,10 @@ const TowerDefense = () => {
 
   // Canvas handlers (extracted to hooks)
   const { handleCanvasClick } = useCanvasHandlers({
-    canvasRef, getZoom, camera, gameState, contextMenu, adminPage, pseudo, gemTypes, editingGem, fusionRecipes,
+    canvasRef, getZoom, camera, gameState, contextMenu, adminPage, pseudo, gemTypes, editingGem, fusionRecipes, enemyTypes, editingEnemy, editingField,
     lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower, selectedTowerToDelete, towers,
     enemies, editingRecipe, setContextMenu, setAdminPage, updatePseudo, setEditingGem, setGemTypes, setAdminMessage,
-    setFusionRecipes, setTempTowers, setPlacementCount, setSelectedTempTower, setTowers, setSelectedTowerToDelete,
+    setFusionRecipes, setEnemyTypes, setEditingEnemy, setTempTowers, setPlacementCount, setSelectedTempTower, setTowers, setSelectedTowerToDelete,
     setColorPickerPosition, setShowColorPicker, setShowEffectSelector, setShowEmojiSelector, setFieldInputPosition,
     setFieldInputValue, setEditingField, colorPickerRef, setShowRecipeEditor, setEditingRecipe, setGameState,
     checkFusionPossible, performFusion, startWave, startNewGame, goToMenuFull, setGameSpeed, zoomIn, zoomOut,
@@ -286,9 +288,9 @@ const TowerDefense = () => {
 
   const { handleCanvasMouseMove, handleMouseDown, handleMouseUp } = useMouseHandlers({
     canvasRef, getZoom, camera, isDragging, dragStart, gameState, contextMenu, adminPage, pseudo, gemTypes,
-    editingGem, fusionRecipes, lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower,
-    selectedTowerToDelete, towers, enemies, setMousePos, setCamera, clampCamera, setHoveredButton,
-    setHoveredMenuButton, setHoveredCell, setHoveredTower, setIsDragging, setDragStart, checkFusionPossible,
+    editingGem, fusionRecipes, enemyTypes, editingEnemy, editingField, lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower,
+    selectedTowerToDelete, towers, enemies, currentPath, setMousePos, setCamera, clampCamera, setHoveredButton,
+    setHoveredMenuButton, setHoveredCell, setHoveredTower, setHoveredEnemy, setIsDragging, setDragStart, checkFusionPossible,
     goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera, deleteTower, startWave, resetGameFull
   });
 
@@ -313,7 +315,7 @@ const TowerDefense = () => {
     // Admin
     if (adminPage) {
       drawAdminPage(ctx, adminPage, {
-        gemTypes, fusionRecipes, hoveredMenuButton, editingGem, adminMessage
+        gemTypes, fusionRecipes, enemyTypes, hoveredMenuButton, editingGem, editingEnemy, adminMessage, editingField
       });
       return;
     }
@@ -352,13 +354,25 @@ const TowerDefense = () => {
     drawPath(ctx, currentPath, zoom);
     drawSpawnPortal(ctx, portailImage, zoom);
     drawGoal(ctx, arriveeImage, zoom);
+
+    // Dessiner avec tri en profondeur (z-ordering) pour l'effet 3D isométrique
+    // 1. D'abord les tours/gemmes derrière les checkpoints
+    drawTowers(ctx, towers, { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom, gemImages, checkpoints: true, behind: true });
+    drawTempTowers(ctx, tempTowers, { hoveredTower, selectedTempTower, zoom, gemImages, checkpoints: true, behind: true });
+
+    // 2. Ensuite les checkpoints
     drawCheckpoints(ctx, checkpointImages, zoom);
 
-    drawTowers(ctx, towers, { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom, gemImages });
-    drawTempTowers(ctx, tempTowers, { hoveredTower, selectedTempTower, zoom, gemImages });
-    drawEnemies(ctx, enemies, currentPath, zoom);
+    // 3. Puis les tours/gemmes devant les checkpoints
+    drawTowers(ctx, towers, { hoveredTower, selectedTowerToDelete, gameState, checkFusionPossible, zoom, gemImages, checkpoints: true, behind: false });
+    drawTempTowers(ctx, tempTowers, { hoveredTower, selectedTempTower, zoom, gemImages, checkpoints: true, behind: false });
+
+    drawEnemies(ctx, enemies, currentPath, zoom, gemTypes);
     drawPlacementPreview(ctx, hoveredCell, { gameState, placementCount, towers, tempTowers, gemholderImage });
     drawProjectiles(ctx, projectiles);
+
+    // Dessiner les surbrillances des gemmes derrière les checkpoints (au-dessus de tout)
+    drawTowerHighlights(ctx, towers, tempTowers);
 
     ctx.restore();
 
@@ -369,6 +383,9 @@ const TowerDefense = () => {
     if (hoveredTower && !contextMenu) {
       drawTowerTooltip(ctx, { hoveredTower, towers, tempTowers, mousePos, gemTypes, fusionRecipes });
     }
+    if (hoveredEnemy && !contextMenu) {
+      drawEnemyTooltip(ctx, { hoveredEnemy, mousePos, gemTypes });
+    }
     if (hoveredButton) {
       drawToolbarTooltip(ctx, { hoveredButton, mousePos, toolbarButtons });
     }
@@ -377,7 +394,7 @@ const TowerDefense = () => {
     }
   }, [
     gameState, lives, wave, score, placementCount, towers, tempTowers, enemies, projectiles,
-    currentPath, camera, hoveredTower, hoveredCell, hoveredButton, hoveredMenuButton,
+    currentPath, camera, hoveredTower, hoveredCell, hoveredButton, hoveredMenuButton, hoveredEnemy,
     selectedTempTower, selectedTowerToDelete, contextMenu, mousePos, errorMessage,
     gameSpeed, adminPage, editingGem, adminMessage, gemTypes, fusionRecipes,
     logoImage, grassImage, portailImage, arriveeImage, checkpointImages,
@@ -430,10 +447,30 @@ const TowerDefense = () => {
           fieldInputPosition={fieldInputPosition}
           onValueChange={setFieldInputValue}
           onSave={() => {
-            const parsedValue = ['damage', 'speed', 'range'].includes(editingField)
-              ? parseInt(fieldInputValue) || 0
+            // Cas spécial pour le pseudo du menu
+            if (editingField === 'pseudo') {
+              updatePseudo(fieldInputValue);
+              setEditingField(null);
+              return;
+            }
+
+            // Déterminer si c'est un nombre ou une chaîne
+            const isNumericField = ['damage', 'speed', 'range', 'hp', 'global_resistance'].includes(editingField);
+            let parsedValue = isNumericField
+              ? (['speed', 'global_resistance'].includes(editingField) ? parseFloat(fieldInputValue) : parseInt(fieldInputValue)) || 0
               : fieldInputValue;
-            setEditingGem(prev => ({ ...prev, [editingField]: parsedValue }));
+
+            // Convertir la résistance globale de % vers décimal
+            if (editingField === 'global_resistance') {
+              parsedValue = parsedValue / 100;
+            }
+
+            // Mettre à jour le bon objet (gem ou enemy)
+            if (adminPage === 'edit-enemy') {
+              setEditingEnemy(prev => ({ ...prev, [editingField]: parsedValue }));
+            } else {
+              setEditingGem(prev => ({ ...prev, [editingField]: parsedValue }));
+            }
             setEditingField(null);
           }}
           onCancel={() => setEditingField(null)}
@@ -450,7 +487,7 @@ const TowerDefense = () => {
         {/* Emoji Picker */}
         <EmojiSelector
           showEmojiSelector={showEmojiSelector}
-          onEmojiClick={handleEmojiClick}
+          onEmojiClick={(emojiData) => handleEmojiClick(emojiData, adminPage === 'edit-enemy')}
           onClose={() => setShowEmojiSelector(false)}
         />
 

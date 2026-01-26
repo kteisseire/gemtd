@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "node start.js",
-    "dev": "vite",
+    "start": "node server/index.js",
+    "dev": "node start.js",
     "server": "node server/index.js",
     "balance": "node server/balancing-tool.js",
     "build": "vite build",

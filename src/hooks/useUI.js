@@ -9,6 +9,7 @@ export const useUI = () => {
   const [hoveredCell, setHoveredCell] = useState(null);
   const [hoveredButton, setHoveredButton] = useState(null);
   const [hoveredMenuButton, setHoveredMenuButton] = useState(null);
+  const [hoveredEnemy, setHoveredEnemy] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [contextMenu, setContextMenu] = useState(null);
 
@@ -18,6 +19,7 @@ export const useUI = () => {
     hoveredCell,
     hoveredButton,
     hoveredMenuButton,
+    hoveredEnemy,
     mousePos,
     contextMenu,
 
@@ -26,6 +28,7 @@ export const useUI = () => {
     setHoveredCell,
     setHoveredButton,
     setHoveredMenuButton,
+    setHoveredEnemy,
     setMousePos,
     setContextMenu
   };

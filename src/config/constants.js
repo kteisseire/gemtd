@@ -77,6 +77,79 @@ export const EFFECT_NAMES = {
   'chain': 'Chaine'
 };
 
+export const EFFECT_DESCRIPTIONS = {
+  'none': 'Aucun effet special',
+  'damage': 'Inflige des degats continus sur la duree',
+  'slow': 'Reduit la vitesse de deplacement de la cible',
+  'poison': 'Empoisonne la cible, degats sur la duree',
+  'fast': 'Augmente la cadence de tir de la tour',
+  'magic': 'Degats magiques ignoring une partie de la resistance',
+  'aoe': 'Inflige des degats de zone autour de la cible',
+  'rapid': 'Tire plusieurs projectiles en rafale',
+  'crit': 'Chance d\'infliger des degats critiques',
+  'stun': 'Etourdit temporairement la cible',
+  'chain': 'Les degats se propagent aux ennemis proches'
+};
+
+// Configuration centralisée des effets
+export const EFFECT_CONFIG = {
+  'none': {},
+
+  'damage': {
+    duration: 4,           // Durée en secondes
+    damageMultiplier: 0.3  // 30% des dégâts initiaux par seconde
+  },
+
+  'slow': {
+    duration: 2,           // Durée en secondes
+    speedReduction: 0.5    // Réduit la vitesse de 50%
+  },
+
+  'poison': {
+    duration: 3,           // Durée en secondes
+    dps: 3                 // Dégâts par seconde (fixe)
+  },
+
+  'fast': {
+    duration: 0,           // Permanent tant que la tour est présente
+    speedBonus: 0.2        // +20% de vitesse d'attaque
+  },
+
+  'magic': {
+    duration: 0,           // Instantané
+    resistancePenetration: 0.5  // Ignore 50% de la résistance
+  },
+
+  'aoe': {
+    duration: 0,           // Instantané
+    radius: 50,            // Rayon d'effet en pixels
+    damageMultiplier: 0.5  // 50% des dégâts aux ennemis secondaires
+  },
+
+  'rapid': {
+    duration: 0,           // Instantané
+    projectileCount: 3,    // Nombre de projectiles
+    spreadAngle: 15        // Angle d'écart entre projectiles (degrés)
+  },
+
+  'crit': {
+    duration: 0,           // Instantané
+    critChance: 0.25,      // 25% de chance de critique
+    critMultiplier: 2.5    // x2.5 dégâts en critique
+  },
+
+  'stun': {
+    duration: 1,           // Durée en secondes
+  },
+
+  'chain': {
+    duration: 0,           // Instantané
+    maxChains: 3,          // Nombre max de rebonds
+    chainRange: 80,        // Portée du rebond en pixels
+    damageReduction: 0.3   // -30% de dégâts par rebond
+  }
+};
+
 // Detection des zones
 export const isInSpawnZone = (x, y) => x >= 0 && x <= 3 && y >= 14 && y <= 17;
 export const isInGoalZone = (x, y) => x >= 21 && x <= 24 && y >= 0 && y <= 3;
