@@ -53,7 +53,7 @@ const TowerDefense = () => {
   const { pseudo, bestScore, lastScore, updatePseudo, saveScore } = useLocalStorage();
   const { logoImage, grassImage, portailImage, arriveeImage, gemholderImage, checkpointImages, gemImages, grassCanvasRef, loadGemImages } = useImages();
   const { camera, setCamera, isDragging, setIsDragging, dragStart, setDragStart, getZoom, clampCamera, zoomIn, zoomOut, resetCamera } = useCamera();
-  const { hoveredTower, setHoveredTower, hoveredCell, setHoveredCell, hoveredButton, setHoveredButton, hoveredMenuButton, setHoveredMenuButton, hoveredEnemy, setHoveredEnemy, mousePos, setMousePos, contextMenu, setContextMenu } = useUI();
+  const { hoveredTower, setHoveredTower, hoveredCell, setHoveredCell, hoveredButton, setHoveredButton, hoveredMenuButton, setHoveredMenuButton, hoveredEnemy, setHoveredEnemy, hoveredVolumeSlider, setHoveredVolumeSlider, mousePos, setMousePos, contextMenu, setContextMenu, musicVolume, setMusicVolume, sfxVolume, setSfxVolume } = useUI();
   const { enemies, setEnemies, projectiles, setProjectiles } = useEnemies();
   const { towers, setTowers, tempTowers, setTempTowers, selectedTowerToDelete, setSelectedTowerToDelete, selectedTempTower, setSelectedTempTower, deleteTower, clearTempTowers } = useTowers();
   const { adminPage, setAdminPage, editingGem, setEditingGem, editingEnemy, setEditingEnemy, adminMessage, setAdminMessage, editingRecipe, setEditingRecipe, showColorPicker, setShowColorPicker, colorPickerPosition, setColorPickerPosition, showEffectSelector, setShowEffectSelector, showEmojiSelector, setShowEmojiSelector, showRecipeEditor, setShowRecipeEditor, editingField, setEditingField, fieldInputValue, setFieldInputValue, fieldInputPosition, setFieldInputPosition } = useAdmin();
@@ -308,7 +308,7 @@ const TowerDefense = () => {
     enemies, editingRecipe, setContextMenu, setAdminPage, updatePseudo, setEditingGem, setGemTypes, setAdminMessage,
     setFusionRecipes, setEnemyTypes, setEditingEnemy, setTempTowers, setPlacementCount, setSelectedTempTower, setTowers, setSelectedTowerToDelete,
     setColorPickerPosition, setShowColorPicker, setShowEffectSelector, setShowEmojiSelector, setFieldInputPosition,
-    setFieldInputValue, setEditingField, colorPickerRef, setShowRecipeEditor, setEditingRecipe, setGameState,
+    setFieldInputValue, setEditingField, colorPickerRef, setShowRecipeEditor, setEditingRecipe, setGameState, setMusicVolume, setSfxVolume,
     checkFusionPossible, performFusion, startWave, startNewGame, goToMenuFull, setGameSpeed, zoomIn, zoomOut,
     resetCamera, deleteTower, resetGameFull, placeTower
   });
@@ -317,7 +317,7 @@ const TowerDefense = () => {
     canvasRef, getZoom, camera, isDragging, dragStart, gameState, contextMenu, adminPage, pseudo, gemTypes,
     editingGem, fusionRecipes, enemyTypes, editingEnemy, editingField, lives, wave, score, placementCount, gameSpeed, tempTowers, selectedTempTower,
     selectedTowerToDelete, towers, enemies, currentPath, setMousePos, setCamera, clampCamera, setHoveredButton,
-    setHoveredMenuButton, setHoveredCell, setHoveredTower, setHoveredEnemy, setIsDragging, setDragStart, checkFusionPossible,
+    setHoveredMenuButton, setHoveredCell, setHoveredTower, setHoveredEnemy, setIsDragging, setDragStart, setHoveredVolumeSlider, checkFusionPossible,
     goToMenuFull, setGameState, setGameSpeed, zoomIn, zoomOut, resetCamera, deleteTower, startWave, resetGameFull
   });
 
@@ -335,7 +335,7 @@ const TowerDefense = () => {
 
     // Menu
     if (gameState === 'menu' && !adminPage) {
-      drawMainMenu(ctx, { logoImage, hoveredMenuButton, pseudo, bestScore, lastScore, leaderboard });
+      drawMainMenu(ctx, { logoImage, hoveredMenuButton, pseudo, bestScore, lastScore, leaderboard, musicVolume, sfxVolume, hoveredVolumeSlider });
       return;
     }
 

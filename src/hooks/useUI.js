@@ -10,8 +10,11 @@ export const useUI = () => {
   const [hoveredButton, setHoveredButton] = useState(null);
   const [hoveredMenuButton, setHoveredMenuButton] = useState(null);
   const [hoveredEnemy, setHoveredEnemy] = useState(null);
+  const [hoveredVolumeSlider, setHoveredVolumeSlider] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [contextMenu, setContextMenu] = useState(null);
+  const [musicVolume, setMusicVolume] = useState(0.15);
+  const [sfxVolume, setSfxVolume] = useState(0.25);
 
   return {
     // États
@@ -20,8 +23,11 @@ export const useUI = () => {
     hoveredButton,
     hoveredMenuButton,
     hoveredEnemy,
+    hoveredVolumeSlider,
     mousePos,
     contextMenu,
+    musicVolume,
+    sfxVolume,
 
     // Setters
     setHoveredTower,
@@ -29,7 +35,10 @@ export const useUI = () => {
     setHoveredButton,
     setHoveredMenuButton,
     setHoveredEnemy,
+    setHoveredVolumeSlider,
     setMousePos,
-    setContextMenu
+    setContextMenu,
+    setMusicVolume,
+    setSfxVolume
   };
 };

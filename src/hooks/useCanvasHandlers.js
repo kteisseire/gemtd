@@ -1,8 +1,9 @@
 import { useCallback } from 'react';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, TOOLBAR_HEIGHT } from '../config/constants';
-import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons } from '../renderers';
+import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons, getVolumeSliders } from '../renderers';
 import { createGem, updateGem, deleteGem, createRecipe, updateRecipe, deleteRecipe, createEnemy, updateEnemy, deleteEnemy } from '../services/api';
 import { isoToGrid } from '../renderers/canvasUtils';
+import { simpleSounds } from '../services/simpleSounds';
 
 // URL de l'API
 const API_URL = import.meta.env.VITE_API_URL || '/api';
@@ -22,7 +23,7 @@ export const useCanvasHandlers = (deps) => {
     setTempTowers, setPlacementCount, setSelectedTempTower, setTowers, setSelectedTowerToDelete,
     setColorPickerPosition, setShowColorPicker, setShowEffectSelector, setShowEmojiSelector,
     setFieldInputPosition, setFieldInputValue, setEditingField, colorPickerRef,
-    setShowRecipeEditor, setEditingRecipe, setGameState,
+    setShowRecipeEditor, setEditingRecipe, setGameState, setMusicVolume, setSfxVolume,
     // Functions
     checkFusionPossible, performFusion, startWave, startNewGame, goToMenuFull, setGameSpeed,
     zoomIn, zoomOut, resetCamera, deleteTower, resetGameFull, placeTower
@@ -113,6 +114,28 @@ export const useCanvasHandlers = (deps) => {
     if (gameState === 'menu' && !adminPage) {
       const centerX = CANVAS_WIDTH / 2;
       const centerY = CANVAS_HEIGHT / 2;
+
+      // Check volume sliders first
+      const volumeSliders = getVolumeSliders(centerX, centerY);
+      for (const slider of volumeSliders) {
+        if (x >= slider.x && x <= slider.x + slider.width && y >= slider.y && y <= slider.y + slider.height) {
+          // Calculate new volume based on click position
+          const relativeX = x - slider.x;
+          const newVolume = Math.max(0, Math.min(1, relativeX / slider.width));
+
+          if (slider.type === 'music') {
+            simpleSounds.setMusicVolume(newVolume);
+            setMusicVolume(newVolume);
+          } else if (slider.type === 'sfx') {
+            simpleSounds.setSFXVolume(newVolume);
+            setSfxVolume(newVolume);
+            // Play a test sound
+            simpleSounds.buttonClick();
+          }
+          return;
+        }
+      }
+
       const menuButtons = getMenuButtons(centerX, centerY, pseudo);
       for (const btn of menuButtons) {
         if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {

@@ -45,7 +45,7 @@ export const getMenuButtons = (centerX, centerY, pseudo) => {
 
 // Dessiner le menu principal
 export const drawMainMenu = (ctx, deps) => {
-  const { logoImage, hoveredMenuButton, pseudo, bestScore, lastScore, leaderboard = [] } = deps;
+  const { logoImage, hoveredMenuButton, pseudo, bestScore, lastScore, leaderboard = [], musicVolume = 0.15, sfxVolume = 0.25, hoveredVolumeSlider = null } = deps;
 
   const centerX = CANVAS_WIDTH / 2;
   const centerY = CANVAS_HEIGHT / 2;
@@ -169,9 +169,94 @@ export const drawMainMenu = (ctx, deps) => {
   ctx.fillStyle = '#94a3b8';
   ctx.fillText(`📝 Dernier: ${lastScore}`, scoreBoxX + scoreBoxWidth / 2, scoreBoxY + 85);
 
+  // Sliders de volume
+  const volumeSliders = getVolumeSliders(centerX, centerY);
+  volumeSliders.forEach(slider => {
+    const value = slider.type === 'music' ? musicVolume : sfxVolume;
+    const isHovered = hoveredVolumeSlider === slider.id;
+    drawVolumeSlider(ctx, slider.x, slider.y, slider.width, slider.height, value, slider.label, isHovered);
+  });
+
   // Message d'instruction en bas
   ctx.fillStyle = '#64748b';
   ctx.font = '14px Arial';
   ctx.textAlign = 'center';
   ctx.fillText('Placez des tours, survivez aux vagues !', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 40);
+};
+
+// Dessiner un slider de volume
+export const drawVolumeSlider = (ctx, x, y, width, height, value, label, isHovered) => {
+  // Label
+  ctx.fillStyle = '#f1f5f9';
+  ctx.font = 'bold 14px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText(label, x, y - 8);
+
+  // Pourcentage
+  ctx.textAlign = 'right';
+  ctx.fillText(`${Math.round(value * 100)}%`, x + width, y - 8);
+
+  // Fond du slider
+  ctx.fillStyle = isHovered ? '#334155' : '#1e293b';
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, height / 2);
+  ctx.fill();
+  ctx.strokeStyle = isHovered ? '#3b82f6' : '#475569';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Barre de remplissage
+  const fillWidth = (width - 4) * value;
+  if (fillWidth > 0) {
+    const gradient = ctx.createLinearGradient(x + 2, y, x + fillWidth, y);
+    gradient.addColorStop(0, '#3b82f6');
+    gradient.addColorStop(1, '#2563eb');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.roundRect(x + 2, y + 2, fillWidth, height - 4, (height - 4) / 2);
+    ctx.fill();
+  }
+
+  // Curseur
+  const cursorX = x + 2 + fillWidth;
+  const cursorY = y + height / 2;
+  const cursorRadius = isHovered ? 10 : 8;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(cursorX, cursorY, cursorRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = isHovered ? '#3b82f6' : '#64748b';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+};
+
+// Obtenir les zones des sliders pour detection de hover/clic
+export const getVolumeSliders = (centerX, centerY) => {
+  const sliderWidth = 280;
+  const sliderHeight = 20;
+  const sliderX = centerX - sliderWidth / 2;
+  const btnStartY = centerY - 50;
+  const sliderStartY = btnStartY + 140 + 70; // Apres le bouton Admin + espace
+
+  return [
+    {
+      id: 'volume-music',
+      x: sliderX,
+      y: sliderStartY,
+      width: sliderWidth,
+      height: sliderHeight,
+      label: '🎵 Musique',
+      type: 'music'
+    },
+    {
+      id: 'volume-sfx',
+      x: sliderX,
+      y: sliderStartY + 60,
+      width: sliderWidth,
+      height: sliderHeight,
+      label: '🔊 Effets sonores',
+      type: 'sfx'
+    }
+  ];
 };

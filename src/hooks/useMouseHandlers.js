@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, TOOLBAR_HEIGHT, GRID_SIZE, COLS, ROWS, isInSpawnZone, isInGoalZone, isInCheckpointZone } from '../config/constants';
-import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons } from '../renderers';
+import { getMenuButtons, getAdminButtons, getContextMenuButtons, getToolbarButtons, getGameOverButtons, getVolumeSliders } from '../renderers';
 import { isoToGrid } from '../renderers/canvasUtils';
 import { getEnemyPosition } from '../services/combatSystem';
 
@@ -18,6 +18,7 @@ export const useMouseHandlers = (deps) => {
     // Setters
     setMousePos, setCamera, clampCamera, setHoveredButton, setHoveredMenuButton,
     setHoveredCell, setHoveredTower, setHoveredEnemy, setIsDragging, setDragStart,
+    setHoveredVolumeSlider,
     // Functions
     checkFusionPossible, goToMenuFull, setGameState, setGameSpeed, zoomIn,
     zoomOut, resetCamera, deleteTower, startWave, resetGameFull
@@ -81,6 +82,17 @@ export const useMouseHandlers = (deps) => {
         }
       }
       setHoveredMenuButton(found);
+
+      // Volume sliders hover
+      const volumeSliders = getVolumeSliders(centerX, centerY);
+      let foundSlider = null;
+      for (const slider of volumeSliders) {
+        if (x >= slider.x && x <= slider.x + slider.width && y >= slider.y && y <= slider.y + slider.height) {
+          foundSlider = slider.id;
+          break;
+        }
+      }
+      setHoveredVolumeSlider(foundSlider);
       return;
     }
 
