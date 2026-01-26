@@ -469,8 +469,9 @@ app.delete('/api/resistances/:enemy_id/:gem_id', (req, res) => {
 });
 
 // En production, servir l'application React pour toutes les autres routes
+// Cela permet au routing côté client de fonctionner (React Router, etc.)
 if (process.env.NODE_ENV === 'production') {
-  app.get('/*', (req, res) => {
+  app.use((req, res) => {
     res.sendFile(join(__dirname, '..', 'dist', 'index.html'));
   });
 }
