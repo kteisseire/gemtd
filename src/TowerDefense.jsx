@@ -12,6 +12,10 @@ import { getEnemyPosition, findTowerTarget, createProjectile } from './services/
 import { gridToIso } from './renderers/canvasUtils';
 import { soundManager } from './services/soundManager';
 import { generateSynthSounds } from './services/soundGenerator';
+import { simpleSounds } from './services/simpleSounds';
+
+// Utiliser simpleSounds au lieu de soundManager (plus simple et fonctionne mieux)
+const sound = simpleSounds;
 
 // Hooks
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -70,14 +74,9 @@ const TowerDefense = () => {
 
   // Initialiser le système audio
   useEffect(() => {
-    const synthSounds = generateSynthSounds();
-
-    // Charger tous les sons
-    Object.entries(synthSounds).forEach(([name, dataURL]) => {
-      soundManager.load(name, dataURL);
-    });
-
-    soundManager.init();
+    console.log('🎵 Initialisation du système audio (simpleSounds)...');
+    simpleSounds.init();
+    console.log('✅ Système audio initialisé');
   }, []);
 
   // Spawn wave
@@ -96,7 +95,7 @@ const TowerDefense = () => {
     const { allTowers, path } = prepareWaveStart(towers, tempTowers, selectedTempTower, gemTypes);
     if (!path) {
       setErrorMessage("Chemin bloque !");
-      soundManager.error();
+      simpleSounds.error();
       return;
     }
     setTowers(allTowers);
@@ -105,7 +104,7 @@ const TowerDefense = () => {
     setSelectedTempTower(null);
     setPlacementCount(0);
     setContextMenu(null);
-    soundManager.waveStart();
+    simpleSounds.waveStart();
     spawnWave();
   };
 
@@ -117,7 +116,7 @@ const TowerDefense = () => {
     if (!newTower) return;
     setTempTowers(prev => [...prev, newTower]);
     setPlacementCount(prev => prev + 1);
-    soundManager.placeTower();
+    simpleSounds.placeTower();
   };
 
   // Reset game

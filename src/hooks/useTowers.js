@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { soundManager } from '../services/soundManager';
+import { simpleSounds } from '../services/simpleSounds';
 
 /**
  * Hook personnalisé pour gérer les tourelles (permanentes et temporaires)
@@ -15,7 +15,7 @@ export const useTowers = () => {
     if (selectedTowerToDelete !== null) {
       setTowers(prev => prev.filter(t => t.id !== selectedTowerToDelete));
       setSelectedTowerToDelete(null);
-      soundManager.sellTower();
+      simpleSounds.sellTower();
     }
   }, [selectedTowerToDelete]);
 

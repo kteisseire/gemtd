@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { getEnemyPosition, findTowerTarget, createProjectile } from '../services/combatSystem';
 import { EFFECT_CONFIG } from '../config/constants';
-import { soundManager } from '../services/soundManager';
+import { simpleSounds } from '../services/simpleSounds';
 
 /**
  * Hook personnalisé pour gérer la boucle de jeu principale
@@ -57,7 +57,7 @@ export const useGameLoop = ({
       setEnemies(prev => {
         return prev.map(enemy => {
           if (enemy.health <= 0 || !currentPath) {
-            if (enemy.health <= 0) soundManager.enemyDeath();
+            if (enemy.health <= 0) simpleSounds.enemyDeath();
             return null;
           }
 
@@ -256,7 +256,7 @@ export const useGameLoop = ({
 
                 // Son de hit avec effet si applicable
                 const mainEffect = effects.find(eff => ['poison', 'freeze', 'burn', 'stun'].includes(eff));
-                soundManager.hitEnemy(mainEffect);
+                simpleSounds.hitEnemy(mainEffect);
 
                 const newHealth = e.health - actualDamage;
                 effects.forEach(eff => {
@@ -323,10 +323,10 @@ export const useGameLoop = ({
                 projectiles.push(proj);
               }
               setProjectiles(prev => [...prev, ...projectiles]);
-              soundManager.shootProjectile(tower.type);
+              simpleSounds.shootProjectile(tower.type);
             } else {
               setProjectiles(prev => [...prev, createProjectile(tower, closestEnemy)]);
-              soundManager.shootProjectile(tower.type);
+              simpleSounds.shootProjectile(tower.type);
             }
           }
         }
