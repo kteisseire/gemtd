@@ -182,6 +182,12 @@ export const drawMainMenu = (ctx, deps) => {
   ctx.font = '14px Arial';
   ctx.textAlign = 'center';
   ctx.fillText('Placez des tours, survivez aux vagues !', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 40);
+
+  // Attribution musicale
+  ctx.fillStyle = '#475569';
+  ctx.font = '11px Arial';
+  ctx.fillText('Music: "Enchanted Journey" by Kevin MacLeod (incompetech.com)', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 15);
+  ctx.fillText('Licensed under Creative Commons: By Attribution 4.0', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 3);
 };
 
 // Dessiner un slider de volume

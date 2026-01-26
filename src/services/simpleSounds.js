@@ -12,6 +12,8 @@ class SimpleSoundManager {
     this.musicVolume = 0.15;
     this.musicOscillators = [];
     this.musicGainNode = null;
+    this.backgroundMusic = null;
+    this.musicSource = null;
   }
 
   init() {
@@ -83,120 +85,43 @@ class SimpleSoundManager {
   }
 
   /**
-   * Musique d'ambiance fantasy avec melodie
+   * Charger et jouer la musique d'ambiance (MP3)
    */
-  startAmbientMusic() {
-    if (!this.musicEnabled || !this.audioContext || this.musicOscillators.length > 0) return;
+  async startAmbientMusic() {
+    if (!this.musicEnabled || !this.audioContext) return;
+    if (this.backgroundMusic) return; // Déjà en cours
 
-    console.log('Demarrage musique d\'ambiance...');
+    console.log('Chargement de la musique d\'ambiance...');
 
     // Reprendre le contexte
     if (this.audioContext.state === 'suspended') {
-      this.audioContext.resume();
+      await this.audioContext.resume();
     }
 
-    // Créer un gain node pour la musique
-    this.musicGainNode = this.audioContext.createGain();
-    this.musicGainNode.gain.value = this.musicVolume;
-    this.musicGainNode.connect(this.audioContext.destination);
+    try {
+      // Charger le fichier MP3
+      const response = await fetch('/music/enchanted-journey.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 
-    // Démarrer la basse continue (drone)
-    this.startBassDrone();
+      // Créer le gain node pour la musique
+      this.musicGainNode = this.audioContext.createGain();
+      this.musicGainNode.gain.value = this.musicVolume;
+      this.musicGainNode.connect(this.audioContext.destination);
 
-    // Démarrer la mélodie
-    this.playMelodyLoop();
-  }
+      // Créer et configurer la source audio
+      this.musicSource = this.audioContext.createBufferSource();
+      this.musicSource.buffer = audioBuffer;
+      this.musicSource.loop = true; // Boucler la musique
+      this.musicSource.connect(this.musicGainNode);
 
-  /**
-   * Basse continue (drone harmonique)
-   */
-  startBassDrone() {
-    const bassFrequencies = [
-      130.81, // C3
-      196.00  // G3
-    ];
+      // Démarrer la lecture
+      this.musicSource.start(0);
+      this.backgroundMusic = true;
 
-    bassFrequencies.forEach((freq, index) => {
-      const osc = this.audioContext.createOscillator();
-      const gain = this.audioContext.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.value = 0.08;
-
-      osc.connect(gain);
-      gain.connect(this.musicGainNode);
-      osc.start();
-
-      this.musicOscillators.push({ osc, gain, type: 'bass' });
-    });
-  }
-
-  /**
-   * Mélodie en boucle
-   */
-  playMelodyLoop() {
-    if (!this.musicEnabled || !this.audioContext) return;
-
-    // Mélodie fantasy en Do majeur
-    // Format: [frequence, duree, delai]
-    const melody = [
-      // Phrase 1
-      [523, 0.4, 0],     // C5
-      [659, 0.4, 0.5],   // E5
-      [784, 0.4, 1.0],   // G5
-      [659, 0.4, 1.5],   // E5
-
-      // Phrase 2
-      [587, 0.4, 2.0],   // D5
-      [523, 0.4, 2.5],   // C5
-      [440, 0.8, 3.0],   // A4
-
-      // Phrase 3
-      [523, 0.4, 4.0],   // C5
-      [659, 0.4, 4.5],   // E5
-      [784, 0.4, 5.0],   // G5
-      [1047, 0.6, 5.5],  // C6
-
-      // Phrase 4
-      [784, 0.4, 6.5],   // G5
-      [659, 0.4, 7.0],   // E5
-      [523, 1.0, 7.5]    // C5
-    ];
-
-    const now = this.audioContext.currentTime;
-
-    melody.forEach(([freq, duration, delay]) => {
-      if (!this.musicEnabled) return;
-
-      const osc = this.audioContext.createOscillator();
-      const gain = this.audioContext.createGain();
-      const filter = this.audioContext.createBiquadFilter();
-
-      // Configuration
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      filter.type = 'lowpass';
-      filter.frequency.value = freq * 2;
-
-      // Chaîne audio
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.musicGainNode);
-
-      // Envelope doux
-      const startTime = now + delay;
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.12, startTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-      osc.start(startTime);
-      osc.stop(startTime + duration);
-    });
-
-    // Répéter la mélodie (durée totale: 8.5 secondes)
-    if (this.musicEnabled) {
-      this.melodyTimeout = setTimeout(() => this.playMelodyLoop(), 9000);
+      console.log('Musique d\'ambiance demarree');
+    } catch (error) {
+      console.error('Erreur lors du chargement de la musique:', error);
     }
   }
 
@@ -204,22 +129,21 @@ class SimpleSoundManager {
    * Arrêter la musique d'ambiance
    */
   stopAmbientMusic() {
-    // Arrêter le timeout de la mélodie
-    if (this.melodyTimeout) {
-      clearTimeout(this.melodyTimeout);
-      this.melodyTimeout = null;
+    if (this.musicSource) {
+      try {
+        this.musicSource.stop();
+      } catch (e) {
+        // Source déjà arrêtée
+      }
+      this.musicSource = null;
     }
 
-    // Arrêter tous les oscillateurs
-    this.musicOscillators.forEach(item => {
-      try {
-        item.osc.stop();
-      } catch (e) {
-        // Oscillateur déjà arrêté
-      }
-    });
-    this.musicOscillators = [];
-    this.musicGainNode = null;
+    if (this.musicGainNode) {
+      this.musicGainNode.disconnect();
+      this.musicGainNode = null;
+    }
+
+    this.backgroundMusic = null;
   }
 
   /**
