@@ -1,6 +1,7 @@
 import { GRID_SIZE, SPAWN_POINT, GOAL_POINT, CHECKPOINTS, ISO_TILE_WIDTH } from '../config/constants';
 import { getEnemyPosition } from '../services/combatSystem';
 import { gridToIso, drawIsoTile3D, drawIsoTile, drawIsoEllipse, drawIsoTileHighlight } from './canvasUtils';
+import { PARTICLE_EFFECTS } from '../services/particleSystem';
 
 // Dessiner le chemin
 export const drawPath = (ctx, currentPath, zoom) => {
@@ -450,13 +451,33 @@ export const drawEnemies = (ctx, enemies, currentPath, zoom, gemTypes) => {
   });
 };
 
-// Dessiner les projectiles
-export const drawProjectiles = (ctx, projectiles) => {
+// Dessiner les projectiles avec effets
+export const drawProjectiles = (ctx, projectiles, particleSystem) => {
   projectiles.forEach(proj => {
-    ctx.fillStyle = proj.color;
+    const effect = proj.effect?.split(',')[0] || 'default';
+    const effectConfig = PARTICLE_EFFECTS[effect] || PARTICLE_EFFECTS.default;
+
+    // Halo/Glow autour du projectile
+    if (effectConfig.projectileGlow) {
+      ctx.save();
+      ctx.shadowColor = effectConfig.projectileGlow;
+      ctx.shadowBlur = 15;
+    }
+
+    // Projectile principal
+    ctx.fillStyle = effectConfig.projectileColor || proj.color || '#f59e0b';
     ctx.beginPath();
-    ctx.arc(proj.x, proj.y, 5, 0, Math.PI * 2);
+    ctx.arc(proj.x, proj.y, 6, 0, Math.PI * 2);
     ctx.fill();
+
+    if (effectConfig.projectileGlow) {
+      ctx.restore();
+    }
+
+    // Créer une traînée de particules si le système est disponible
+    if (particleSystem && effectConfig.trail?.enabled) {
+      particleSystem.createTrail(proj, effect);
+    }
   });
 };
 

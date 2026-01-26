@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { getEnemyPosition, findTowerTarget, createProjectile } from '../services/combatSystem';
 import { EFFECT_CONFIG } from '../config/constants';
 import { simpleSounds } from '../services/simpleSounds';
+import { particleSystem } from '../services/particleSystem';
 
 /**
  * Hook personnalisé pour gérer la boucle de jeu principale
@@ -106,6 +107,11 @@ export const useGameLoop = ({
               enemyId: proj.targetId, damage: proj.damage,
               effect: proj.effect, towerType: proj.towerType
             });
+
+            // Créer des particules d'impact
+            const mainEffect = proj.effect.split(',')[0] || 'default';
+            particleSystem.createImpact(enemyPos.x, enemyPos.y, mainEffect);
+
             return null;
           }
 

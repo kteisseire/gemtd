@@ -13,6 +13,7 @@ import { gridToIso } from './renderers/canvasUtils';
 import { soundManager } from './services/soundManager';
 import { generateSynthSounds } from './services/soundGenerator';
 import { simpleSounds } from './services/simpleSounds';
+import { particleSystem } from './services/particleSystem';
 
 // Utiliser simpleSounds au lieu de soundManager (plus simple et fonctionne mieux)
 const sound = simpleSounds;
@@ -396,7 +397,12 @@ const TowerDefense = () => {
 
     drawEnemies(ctx, enemies, currentPath, zoom, gemTypes);
     drawPlacementPreview(ctx, hoveredCell, { gameState, placementCount, towers, tempTowers, gemholderImage });
-    drawProjectiles(ctx, projectiles);
+
+    // Mettre à jour et dessiner les particules (dans le contexte caméra)
+    particleSystem.update();
+    particleSystem.draw(ctx);
+
+    drawProjectiles(ctx, projectiles, particleSystem);
 
     // Dessiner les surbrillances des gemmes derrière les checkpoints (au-dessus de tout)
     drawTowerHighlights(ctx, towers, tempTowers);
