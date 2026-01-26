@@ -15,7 +15,7 @@ const apiServer = spawn('node', ['server/index.js'], {
 });
 
 // Démarrer le serveur de développement Vite
-const devServer = spawn('npm', ['run', 'dev'], {
+const devServer = spawn('npx', ['vite'], {
   cwd: __dirname,
   stdio: 'inherit',
   shell: true
