@@ -402,6 +402,9 @@ class ParticleSystem {
   constructor() {
     this.pool = new ParticlePool(300);
     this.projectileTrails = new Map(); // Map projectile ID -> trail particles
+    this.persistentEffects = []; // Effets de persistance au sol (feu, poison)
+    this.chainEffects = []; // Effets de chaîne (lightning entre ennemis)
+    this.aoeRings = []; // Anneaux d'explosion AOE
     this.lastTime = Date.now();
   }
 
@@ -463,6 +466,88 @@ class ParticleSystem {
           impactConfig.rotationSpeed.min + Math.random() * (impactConfig.rotationSpeed.max - impactConfig.rotationSpeed.min) : 0
       });
     }
+
+    // Créer un effet de persistance pour le feu et le poison
+    if (effect === 'damage' || effect === 'poison') {
+      this.createPersistentEffect(x, y, effect);
+    }
+
+    // Créer un anneau AOE pour les explosions
+    if (effect === 'aoe') {
+      this.createAOERing(x, y);
+    }
+  }
+
+  /**
+   * Créer un effet de persistance au sol (feu ou poison)
+   */
+  createPersistentEffect(x, y, effect) {
+    const duration = effect === 'damage' ? 3000 : 4000; // Feu: 3s, Poison: 4s
+    const colors = effect === 'damage'
+      ? ['#ef4444', '#f97316', '#fb923c']
+      : ['#22c55e', '#4ade80', '#86efac'];
+
+    this.persistentEffects.push({
+      x: x,
+      y: y,
+      effect: effect,
+      life: duration,
+      maxLife: duration,
+      colors: colors,
+      lastEmit: Date.now()
+    });
+  }
+
+  /**
+   * Créer un anneau d'explosion AOE
+   */
+  createAOERing(x, y) {
+    this.aoeRings.push({
+      x: x,
+      y: y,
+      radius: 0,
+      maxRadius: 120,
+      life: 600,
+      maxLife: 600,
+      color: '#f97316'
+    });
+  }
+
+  /**
+   * Créer un effet de chaîne entre ennemis
+   */
+  createChainEffect(startX, startY, endX, endY) {
+    this.chainEffects.push({
+      startX: startX,
+      startY: startY,
+      endX: endX,
+      endY: endY,
+      life: 300,
+      maxLife: 300,
+      segments: []
+    });
+
+    // Créer quelques particules le long de la chaîne
+    const steps = 8;
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const x = startX + (endX - startX) * t;
+      const y = startY + (endY - startY) * t;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 20 + Math.random() * 30;
+
+      this.pool.emit({
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 2 + Math.random() * 3,
+        color: ['#1f2937', '#374151', '#4b5563'][Math.floor(Math.random() * 3)],
+        life: 400,
+        decay: 0.95,
+        gravity: 0.05
+      });
+    }
   }
 
   update() {
@@ -479,9 +564,158 @@ class ParticleSystem {
         this.projectileTrails.delete(key);
       }
     }
+
+    // Mettre à jour les effets de persistance
+    this.persistentEffects = this.persistentEffects.filter(effect => {
+      effect.life -= deltaTime * 16.67; // Convertir en ms
+
+      // Émettre des particules périodiquement
+      if (now - effect.lastEmit > 100) {
+        effect.lastEmit = now;
+
+        // Feu: particules montantes
+        if (effect.effect === 'damage') {
+          for (let i = 0; i < 2; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 15;
+            this.pool.emit({
+              x: effect.x + Math.cos(angle) * radius,
+              y: effect.y + Math.sin(angle) * radius,
+              vx: (Math.random() - 0.5) * 10,
+              vy: -30 - Math.random() * 20,
+              size: 3 + Math.random() * 3,
+              color: effect.colors[Math.floor(Math.random() * effect.colors.length)],
+              life: 600,
+              decay: 0.97,
+              gravity: -0.15,
+              sparkle: true
+            });
+          }
+        }
+        // Poison: bulles toxiques
+        else if (effect.effect === 'poison') {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = Math.random() * 20;
+          this.pool.emit({
+            x: effect.x + Math.cos(angle) * radius,
+            y: effect.y + Math.sin(angle) * radius,
+            vx: (Math.random() - 0.5) * 15,
+            vy: -10 - Math.random() * 15,
+            size: 2 + Math.random() * 4,
+            color: effect.colors[Math.floor(Math.random() * effect.colors.length)],
+            life: 800,
+            decay: 0.98,
+            gravity: -0.08,
+            sparkle: false
+          });
+        }
+      }
+
+      return effect.life > 0;
+    });
+
+    // Mettre à jour les anneaux AOE
+    this.aoeRings = this.aoeRings.filter(ring => {
+      ring.life -= deltaTime * 16.67;
+      ring.radius = ring.maxRadius * (1 - ring.life / ring.maxLife);
+      return ring.life > 0;
+    });
+
+    // Mettre à jour les effets de chaîne
+    this.chainEffects = this.chainEffects.filter(chain => {
+      chain.life -= deltaTime * 16.67;
+      return chain.life > 0;
+    });
   }
 
   draw(ctx) {
+    // Dessiner les effets de persistance au sol d'abord (en arrière-plan)
+    this.persistentEffects.forEach(effect => {
+      const alpha = Math.max(0.3, effect.life / effect.maxLife);
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.4;
+
+      // Zone circulaire de l'effet
+      const gradient = ctx.createRadialGradient(effect.x, effect.y, 0, effect.x, effect.y, 25);
+      gradient.addColorStop(0, effect.colors[0]);
+      gradient.addColorStop(0.5, effect.colors[1]);
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, 25, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    });
+
+    // Dessiner les anneaux AOE
+    this.aoeRings.forEach(ring => {
+      const alpha = ring.life / ring.maxLife;
+      const thickness = 4 + (1 - alpha) * 8;
+
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.8;
+
+      // Anneau extérieur
+      ctx.strokeStyle = ring.color;
+      ctx.lineWidth = thickness;
+      ctx.beginPath();
+      ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Anneau de glow
+      ctx.globalAlpha = alpha * 0.4;
+      ctx.shadowColor = ring.color;
+      ctx.shadowBlur = 20;
+      ctx.lineWidth = thickness * 2;
+      ctx.stroke();
+
+      ctx.restore();
+    });
+
+    // Dessiner les effets de chaîne (lightning)
+    this.chainEffects.forEach(chain => {
+      const alpha = chain.life / chain.maxLife;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#374151';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+
+      // Dessiner une ligne avec des segments aléatoires pour un effet éclair
+      ctx.beginPath();
+      ctx.moveTo(chain.startX, chain.startY);
+
+      const steps = 8;
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const x = chain.startX + (chain.endX - chain.startX) * t;
+        const y = chain.startY + (chain.endY - chain.startY) * t;
+        // Ajouter un décalage aléatoire perpendiculaire
+        const offset = (Math.random() - 0.5) * 15;
+        const angle = Math.atan2(chain.endY - chain.startY, chain.endX - chain.startX) + Math.PI / 2;
+        const offsetX = Math.cos(angle) * offset;
+        const offsetY = Math.sin(angle) * offset;
+        ctx.lineTo(x + offsetX, y + offsetY);
+      }
+
+      ctx.lineTo(chain.endX, chain.endY);
+      ctx.stroke();
+
+      // Ligne de glow
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.strokeStyle = '#6b7280';
+      ctx.lineWidth = 6;
+      ctx.shadowColor = '#1f2937';
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+
+      ctx.restore();
+    });
+
+    // Dessiner les particules normales par dessus
     this.pool.draw(ctx);
   }
 

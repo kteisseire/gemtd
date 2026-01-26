@@ -175,6 +175,11 @@ export const useGameLoop = ({
                 const hitEnemies = new Set([damage.enemyId]);
                 let currentTarget = currentEnemies.find(e => e.id === damage.enemyId);
                 let currentDamage = damage.damage;
+                let previousPos = null;
+
+                // Position de la première cible
+                const firstPos = getEnemyPosition(currentTarget, currentPath);
+                if (firstPos) previousPos = firstPos;
 
                 for (let chain = 0; chain < chainConfig.maxChains; chain++) {
                   if (!currentTarget) break;
@@ -202,6 +207,12 @@ export const useGameLoop = ({
                   });
 
                   if (nextTarget) {
+                    const nextPos = getEnemyPosition(nextTarget, currentPath);
+                    if (nextPos && currentPos) {
+                      // Créer l'effet visuel de chaîne entre les deux ennemis
+                      particleSystem.createChainEffect(currentPos.x, currentPos.y, nextPos.x, nextPos.y);
+                    }
+
                     currentDamage *= (1 - chainConfig.damageReduction);
                     hitEnemies.add(nextTarget.id);
                     aoeTargets.push({
